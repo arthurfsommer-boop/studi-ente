@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Studi-Ente</title>
+<meta name="theme-color" content="#FFF6E9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Studi-Ente">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="ente-180.png">
+<link rel="icon" href="ente-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{
+  --creme:#FFF6E9; --creme2:#FFEBD0; --karte:#FFFFFF; --braun:#4A3426; --braun2:#7A5C48;
+  --gelb:#FFC93C; --orange:#FF9F4A; --koralle:#FF7A5C; --gruen:#7BC47F; --blau:#5DB7DE; --lila:#B58BE0;
+  --schatten:0 6px 18px rgba(120,80,40,.14); --r:22px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--creme);color:var(--braun);font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:17px;line-height:1.4}
+#app{display:flex;min-height:100%}
+nav{width:104px;background:var(--creme2);padding:14px 8px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;flex:none}
+nav .logo{display:flex;justify-content:center;margin-bottom:6px}
+nav button{border:0;background:transparent;border-radius:16px;padding:10px 4px;color:var(--braun2);font:inherit;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+nav button .ic{font-size:26px;line-height:1}
+nav button.on{background:var(--karte);color:var(--braun);box-shadow:var(--schatten);font-weight:700}
+main{flex:1;min-width:0;padding:24px 28px 60px;max-width:1180px}
+h1{margin:0 0 4px;font-size:30px}
+h2{margin:0 0 10px;font-size:21px}
+.sub{color:var(--braun2);margin:0 0 18px}
+.card{background:var(--karte);border-radius:var(--r);box-shadow:var(--schatten);padding:18px 20px;margin-bottom:16px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.btn{border:0;border-radius:999px;background:var(--koralle);color:#fff;font:inherit;font-weight:700;padding:12px 22px;cursor:pointer;box-shadow:0 4px 0 #d9583c}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #d9583c}
+.btn.soft{background:var(--creme2);color:var(--braun);box-shadow:0 4px 0 #e6cfae}
+.chip{display:inline-block;border-radius:999px;padding:3px 11px;font-size:14px;background:var(--creme2)}
+.chip.warn{background:#FFD9CF;color:#a0361d;font-weight:700}
+.chip.ok{background:#DDF1DE;color:#2f6b33}
+input[type=text],input[type=number]{font:inherit;color:var(--braun);border:2px solid var(--creme2);border-radius:14px;padding:9px 12px;background:#fff;min-width:0}
+input:focus{outline:none;border-color:var(--orange)}
+.hint{font-size:14px;color:var(--braun2)}
+.demo{position:fixed;right:12px;bottom:10px;background:var(--braun);color:#fff;border-radius:999px;font-size:13px;padding:6px 14px;opacity:.88;z-index:50}
+.bubble{position:relative;background:#fff;border-radius:20px;padding:14px 18px;box-shadow:var(--schatten);max-width:520px}
+.bubble:before{content:"";position:absolute;left:-10px;top:26px;border:10px solid transparent;border-right-color:#fff;border-left:0}
+.ente-row{display:flex;gap:20px;align-items:center;margin-bottom:18px}
+.zaehler{height:16px;border-radius:99px;background:var(--creme2);overflow:hidden}
+.zaehler i{display:block;height:100%;background:linear-gradient(90deg,var(--gelb),var(--orange));border-radius:99px}
+/* Kühlschrank */
+.foto{width:100%;max-width:420px;aspect-ratio:3/4;border-radius:24px;background:linear-gradient(#e8f3f8,#cfe4ee);display:flex;align-items:center;justify-content:center;box-shadow:var(--schatten)}
+.zeile{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--creme2)}
+.zeile:last-child{border:0}
+.zeile .n{flex:1}
+.rezept{display:flex;gap:14px;align-items:flex-start}
+.rezept .bild{font-size:44px;background:var(--creme2);border-radius:18px;width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex:none}
+/* Wochenplan */
+.palette{display:flex;gap:12px;flex-wrap:wrap;padding:14px;background:var(--creme2);border-radius:var(--r);margin-bottom:14px;align-items:center}
+.palette .t{font-weight:700;margin-right:6px}
+.woche{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.tag{background:#fff;border-radius:18px;box-shadow:var(--schatten);padding:8px;min-height:300px;display:flex;flex-direction:column;gap:8px}
+.tag h3{margin:0;text-align:center;font-size:15px;color:var(--braun2)}
+.dayzone{flex:1;display:flex;flex-direction:column;gap:8px;min-height:240px;border-radius:12px;transition:background .12s}
+.dayzone.over{background:#FFF1DC;outline:2px dashed var(--orange)}
+.block{--c:var(--gruen);position:relative;background:var(--c);border-radius:14px;padding:8px 8px 8px 8px;color:#2b1a10;display:flex;flex-direction:column;gap:5px;box-shadow:0 3px 0 rgba(0,0,0,.18);user-select:none;-webkit-user-select:none}
+.block:before{content:"";position:absolute;top:-5px;left:16px;width:22px;height:7px;background:var(--c);border-radius:5px 5px 0 0}
+.block.einkaufen{--c:var(--gruen)}.block.kochen{--c:var(--orange)}.block.mensa{--c:var(--blau)}.block.sonstiges{--c:var(--lila)}
+.block .kopf{display:flex;align-items:center;gap:4px;font-weight:800;font-size:13.5px;white-space:nowrap;padding-right:8px}
+.block .grip{touch-action:none;cursor:grab;opacity:.55;font-size:18px;letter-spacing:-3px;padding:0 2px}
+.block .x{position:absolute;top:-9px;right:-7px;border:0;background:#fff;border-radius:50%;width:24px;height:24px;font-size:13px;cursor:pointer;color:#2b1a10;box-shadow:0 2px 5px rgba(0,0,0,.25);padding:0}
+.block textarea{width:100%;border:0;border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;line-height:1.25;background:rgba(255,255,255,.88);resize:none;min-height:50px;color:#2b1a10}
+.block textarea:focus{outline:2px solid #fff}
+.block.pal{cursor:grab;touch-action:none;min-width:170px;padding:10px 12px}
+.block.pal .kopf{font-size:17px;padding-right:0}
+.ghost{position:fixed;z-index:100;pointer-events:none;width:170px;opacity:.92;transform:rotate(-3deg)}
+.leer{color:#b79a82;font-size:13px;text-align:center;padding:10px 4px}
+/* Profil */
+.reiter{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;padding-bottom:4px}
+.pzeile{display:flex;gap:10px;flex-wrap:wrap;padding-top:10px}
+.pzeile #pname{flex:1 1 100%}
+.pzeile #pdatum{flex:1;min-width:0}
+.reiter button,.wahl button,.mensen button{border:0;font:inherit;color:var(--braun);background:var(--creme2);border-radius:999px;padding:10px 16px;cursor:pointer;white-space:nowrap;flex:none}
+.reiter button.on{background:var(--koralle);color:#fff;font-weight:700;box-shadow:0 3px 0 #d9583c}
+.wahl{display:flex;gap:8px;flex-wrap:wrap}
+.wahl button.on,.mensen button.on{background:var(--gelb);font-weight:700;box-shadow:0 3px 0 #e0a91f}
+.mensen{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:8px}
+.mensen button{border-radius:16px;text-align:left;padding:14px 16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.chip .cx{border:0;background:rgba(255,255,255,.7);border-radius:50%;width:22px;height:22px;font-size:11px;margin-left:4px;cursor:pointer;color:inherit;padding:0}
+.chips .chip{font-size:15px;padding:5px 8px 5px 13px}
+input[type=date]{font:inherit;color:var(--braun);border:2px solid var(--creme2);border-radius:14px;padding:8px 10px;background:#fff;min-height:44px}
+@media(max-width:900px){
+  #app{flex-direction:column-reverse}
+  nav{width:100%;height:auto;flex-direction:row;position:sticky;bottom:0;top:auto;justify-content:space-around;padding:6px}
+  nav .logo{display:none}
+  .demo{bottom:78px;right:8px;font-size:11px;padding:4px 10px}
+  nav button{flex:1;font-size:11px;padding:6px 2px}
+  main{padding:16px 14px 90px}
+  .woche{grid-template-columns:repeat(7,150px);overflow-x:auto;padding-bottom:10px}
+  .ente-row{flex-direction:column;align-items:flex-start}
+  .bubble:before{display:none}
+}
+/* Begrüßung */
+#hallo{position:fixed;inset:0;background:rgba(74,52,38,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+#hallo .karte{background:var(--creme);border-radius:30px;padding:28px 30px;max-width:460px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+#hallo h1{font-size:28px}
+</style>
+<style>
+/* Ergänzungen für die echte App */
+nav{padding-bottom:max(14px,env(safe-area-inset-bottom))}
+@media(max-width:900px){ nav{padding-bottom:max(6px,env(safe-area-inset-bottom))} main{padding-bottom:110px} .block textarea,.block select,input[type=text],input[type=date]{font-size:16px} }
+.block select{width:100%;border:0;border-radius:10px;padding:6px 6px;font:inherit;font-size:14px;background:rgba(255,255,255,.88);color:#2b1a10}
+.minfo{border:0;background:rgba(255,255,255,.55);border-radius:10px;font:inherit;font-size:12.5px;padding:4px 6px;color:#2b1a10;text-align:left;cursor:pointer}
+.mensen button.klein{padding:9px 12px;font-size:15px}
+.tage{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.tage button{border:0;font:inherit;background:#fff;border-radius:14px;padding:8px 12px;box-shadow:var(--schatten);cursor:pointer;color:var(--braun)}
+.tage button.on{background:var(--blau);color:#fff;font-weight:700}
+.gericht{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.gericht .preis{font-weight:800;font-size:19px;white-space:nowrap}
+.heute{display:flex;gap:8px;flex-wrap:wrap}
+.heute .chip{font-size:15px;padding:6px 12px}
+.ezeile select{font:inherit;color:var(--braun);border:2px solid var(--creme2);border-radius:14px;padding:8px;background:#fff}
+.bald{opacity:.75}
+.mzeile{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;margin-bottom:6px;-webkit-overflow-scrolling:touch}
+.mzeile button{flex:none}
+.gericht h2{font-size:18px}
+@media(max-width:900px){
+  .palette{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+  .palette .t{grid-column:1/-1}
+  .block.pal{min-width:0;padding:9px 10px}
+  .block.pal .kopf{font-size:15px}
+  .gericht h2{font-size:16.5px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div id="hallo"></div>
+
+<script>
+/* ---------- Reine Logik (ohne Bildschirm; wird mit Node getestet: node test_plan.js) ---------- */
+const TAGE = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+const TYPEN = {
+  einkaufen:{label:'Einkaufen',icon:'🛒',platz:'Wo / was?'},
+  kochen:{label:'Kochen',icon:'🍳',platz:'Was kochst du?'},
+  mensa:{label:'Mensa',icon:'🍽️',platz:'Welche Mensa?'},
+  sonstiges:{label:'Sonstiges',icon:'✏️',platz:'Was steht an?'}
+};
+let naechsteId = 1;
+function neuerBlock(typ, text){
+  if(!TYPEN[typ]) throw new Error('Unbekannter Baustein: '+typ);
+  // Zeit + Zähler: bleibt eindeutig, auch nach dem Neuladen gespeicherter Pläne
+  return {id:'b'+Date.now().toString(36)+'_'+(naechsteId++), typ, text:text||''};
+}
+function leererPlan(){ const p={}; TAGE.forEach(t=>p[t]=[]); return p; }
+function findeBlock(plan,id){
+  for(const t of TAGE){ const i=plan[t].findIndex(b=>b.id===id); if(i>=0) return {tag:t,index:i}; }
+  return null;
+}
+function einfuegen(plan,tag,index,block){
+  if(!plan[tag]) throw new Error('Unbekannter Tag: '+tag);
+  const i=Math.max(0,Math.min(index,plan[tag].length));
+  plan[tag].splice(i,0,block); return plan;
+}
+function verschieben(plan,id,tag,index){
+  const f=findeBlock(plan,id); if(!f) return plan;
+  const [b]=plan[f.tag].splice(f.index,1);
+  let i=index; if(f.tag===tag && f.index<index) i=index-1;
+  return einfuegen(plan,tag,i,b);
+}
+function entfernen(plan,id){ const f=findeBlock(plan,id); if(f) plan[f.tag].splice(f.index,1); return plan; }
+function zaehle(plan){ const z={einkaufen:0,kochen:0,mensa:0,sonstiges:0}; TAGE.forEach(t=>plan[t].forEach(b=>z[b.typ]++)); return z; }
+
+function fuegeHinzu(liste, wort){
+  const w=String(wort==null?'':wort).trim().replace(/\s+/g,' ');
+  if(!w || liste.some(x=>x.toLowerCase()===w.toLowerCase())) return false;
+  liste.push(w); return true;
+}
+function tageBis(iso, heute){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||'')) return NaN;
+  const [y,m,d]=iso.split('-').map(Number);
+  return Math.round((Date.UTC(y,m-1,d)-Date.UTC(heute.getFullYear(),heute.getMonth(),heute.getDate()))/86400000);
+}
+function naechstePruefung(liste, heute){
+  return liste.map(p=>Object.assign({},p,{tage:tageBis(p.d,heute)})).filter(p=>p.tage>=0).sort((a,b)=>a.tage-b.tage)[0]||null;
+}
+
+/* Datum: alles in Ortszeit, als Text "JJJJ-MM-TT" */
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function montagVon(h){ const d=new Date(h.getFullYear(),h.getMonth(),h.getDate()); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d; }
+function tagHeute(h){ return TAGE[(h.getDay()+6)%7]; }
+function datumFuerTag(tag,h){ const i=TAGE.indexOf(tag); if(i<0) throw new Error('Unbekannter Tag: '+tag); const d=montagVon(h); d.setDate(d.getDate()+i); return iso(d); }
+function tagVonDatum(s){ const [y,m,d]=s.split('-').map(Number); return TAGE[(new Date(y,m-1,d).getDay()+6)%7]; }
+
+/* Geld */
+function parsePreis(s){
+  const t=String(s==null?'':s).replace('€','').trim().replace(',','.');
+  if(!t) return null;                                   // kein Preis = erlaubt
+  if(!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;           // Unsinn
+  const v=Number(t); return v<10000 ? v : NaN;
+}
+function ausgegeben(einkauf){ return Math.round(einkauf.filter(x=>x.done && typeof x.p==='number').reduce((a,x)=>a+x.p,0)*100)/100; }
+// Neue Woche? Dann alte Woche für den Rückblick merken und Abgehaktes wegräumen
+function neueWoche(st,h){
+  const k=iso(montagVon(h)); if(st.woche===k) return false;
+  if(st.woche) st.verlauf.push({woche:st.woche, ausgegeben:ausgegeben(st.einkauf), budget:st.ziel});
+  st.einkauf=st.einkauf.filter(x=>!x.done); st.woche=k; return true;
+}
+
+/* Mensa (Daten von OpenMensa) */
+function gerichtName(s){
+  return String(s||'').split(/\s{2,}/).map(p=>p.replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim()).filter(Boolean)
+    .reduce((a,p)=>!a?p:(/^(mit|und|an|auf|in|dazu)\b/i.test(p)?a+' '+p:a+' · '+p),'');
+}
+function warnungen(meal,profil){
+  const notes=(meal.notes||[]).map(n=>String(n).toLowerCase());
+  const text=(String(meal.name)+' '+notes.join(' ')).toLowerCase(), w=[];
+  profil.magNicht.concat(profil.allergien).forEach(x=>{ if(x && text.includes(x.toLowerCase())) w.push(x); });
+  const vegan=notes.includes('vegan'), veg=vegan||notes.includes('vegetarisch');
+  if(profil.ernaehrung==='vegan' && !vegan) w.push('nicht als vegan markiert');
+  if(profil.ernaehrung==='vegetarisch' && !veg) w.push('nicht als vegetarisch markiert');
+  return w;
+}
+if(typeof module!=='undefined') module.exports={TAGE,TYPEN,neuerBlock,leererPlan,findeBlock,einfuegen,verschieben,entfernen,zaehle,
+  fuegeHinzu,tageBis,naechstePruefung,iso,montagVon,tagHeute,datumFuerTag,tagVonDatum,parsePreis,ausgegeben,neueWoche,gerichtName,warnungen};
+</script>
+
+<script>
+if(typeof document!=='undefined'){
+/* ---------- Zustand: wird im Browser des Geräts gespeichert (localStorage) ---------- */
+const KEY='studi-ente-v1';
+const MENSEN=[[1169,'Mensa Am Ring'],[1170,'Mensa Aasee'],[1171,'Mensa Da Vinci'],[1213,'Mensa Bispinghof'],[1214,'Bistro Oeconomicum'],[1172,'Bistro Denkpause'],[1238,'Bistro Katholische Hochschule']];
+const REITER=[['essen','🥕','Essen'],['geld','💶','Geld'],['mensa','🍽️','Mensa'],['pruef','📚','Prüfungen'],['ente','🦆','Ente']];
+function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false,
+  profil:{magNicht:[],mag:[],allergien:[],ernaehrung:'alles',laeden:[],mensa:1169,pruefungen:[],enteName:'',gespraechig:'normal'}}; }
+function lade(){
+  const s=standard();
+  try{
+    const d=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(d && typeof d==='object'){
+      if(typeof d.ziel==='number') s.ziel=d.ziel;
+      if(Array.isArray(d.einkauf)) s.einkauf=d.einkauf;
+      if(d.plan && TAGE.every(t=>Array.isArray(d.plan[t]))) s.plan=d.plan;
+      if(typeof d.woche==='string') s.woche=d.woche;
+      if(Array.isArray(d.verlauf)) s.verlauf=d.verlauf;
+      s.begruesst=!!d.begruesst;
+      if(d.profil) Object.keys(s.profil).forEach(k=>{ if(d.profil[k]!==undefined && typeof d.profil[k]===typeof s.profil[k]) s.profil[k]=d.profil[k]; });
+    }
+  }catch(e){}
+  return s;
+}
+let speicherFehler=false;
+function speichere(){
+  try{ localStorage.setItem(KEY, JSON.stringify({ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,profil:S.profil})); speicherFehler=false; }
+  catch(e){ speicherFehler=true; }
+}
+const S=lade();
+const U={screen:'start', reiter:'essen', mensa:null, datum:null};   // nur Bildschirm-Zustand, wird nicht gespeichert
+neueWoche(S,new Date());
+
+/* ---------- Ente ---------- */
+function ente(mood,px){
+  const augen = mood==='schlaf' ? '<path d="M70 70q6 5 12 0M98 70q6 5 12 0" stroke="#4A3426" stroke-width="4" fill="none" stroke-linecap="round"/>'
+    : mood==='froh' ? '<path d="M70 72q6-8 12 0M98 72q6-8 12 0" stroke="#4A3426" stroke-width="4" fill="none" stroke-linecap="round"/>'
+    : '<circle cx="76" cy="68" r="5.5" fill="#4A3426"/><circle cx="104" cy="68" r="5.5" fill="#4A3426"/><circle cx="78" cy="66" r="1.8" fill="#fff"/><circle cx="106" cy="66" r="1.8" fill="#fff"/>';
+  return `<svg width="${px}" height="${px}" viewBox="0 0 180 180" aria-label="Ente">
+    <ellipse cx="92" cy="140" rx="52" ry="30" fill="#FFC93C"/>
+    <path d="M118 128q34-8 30-38q-14 18-38 18z" fill="#F5B21F"/>
+    <circle cx="90" cy="78" r="46" fill="#FFD75E"/>
+    <ellipse cx="60" cy="86" rx="9" ry="6" fill="#FF9F8A" opacity=".7"/><ellipse cx="120" cy="86" rx="9" ry="6" fill="#FF9F8A" opacity=".7"/>
+    ${augen}
+    <path d="M76 92q14-10 28 0q-2 12-14 12q-12 0-14-12z" fill="#FF8A3D"/>
+    <path d="M80 94q10-5 20 0" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none"/>
+    <path d="M86 34q4-14 12-8" stroke="#F5B21F" stroke-width="5" fill="none" stroke-linecap="round"/>
+    ${mood==='schlaf'?'<text x="130" y="44" font-size="22" fill="#7A5C48">z z</text>':''}
+  </svg>`;
+}
+
+/* ---------- Hilfen ---------- */
+const NAV=[['start','🏠','Start'],['woche','📅','Woche'],['mensa','🍽️','Mensa'],['einkauf','🛒','Einkauf'],['kuehl','🧊','Kühlschrank'],['preis','🏷️','Preis'],['profil','🙂','Profil']];
+const $=s=>document.querySelector(s);
+function eur(x){return x.toFixed(2).replace('.',',')+' €'}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function mensaName(id){ const m=MENSEN.find(x=>x[0]===id); return m?m[1]:'Mensa'; }
+function mensaIdVon(text){ const t=String(text||'').toLowerCase(); const m=MENSEN.find(x=>t.includes(x[1].toLowerCase())||t.includes(x[1].toLowerCase().replace(/^(mensa|bistro) /,''))); return m?m[0]:S.profil.mensa; }
+function datumKurz(s){ const [y,m,d]=s.split('-'); return tagVonDatum(s)+' '+d+'.'+m+'.'; }
+function sprich(normal,wenig,viel){ const g=S.profil.gespraechig; return g==='wenig'?wenig:g==='viel'?viel:normal; }
+function gruss(){ return S.profil.enteName?`<b>Quak, hier ist ${esc(S.profil.enteName)}!</b>`:'<b>Quak!</b>'; }
+
+/* ---------- Mensa-Daten holen (mit Zwischenspeicher, damit nicht ständig neu geladen wird) ---------- */
+const MC={}, MD={};
+const API='https://openmensa.org/api/v2/canteens/';
+function mensaDaten(id,datum){
+  const k=id+'|'+datum; if(MC[k]) return MC[k];
+  MC[k]={status:'laden',meals:[]};
+  fetch(API+id+'/days/'+datum+'/meals').then(r=>{ if(r.status===404) return []; if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(m=>{ MC[k]={status:m.length?'ok':'leer',meals:m}; })
+    .catch(()=>{ MC[k]={status:'fehler',meals:[]}; })
+    .then(()=>nachLaden(k));
+  return MC[k];
+}
+function mensaTage(id){
+  if(MD[id]) return MD[id];
+  MD[id]={status:'laden',tage:[]};
+  const heute=iso(new Date());
+  fetch(API+id+'/days').then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(d=>{ MD[id]={status:'ok',tage:d.filter(x=>!x.closed && x.date>=heute).map(x=>x.date).slice(0,6)}; })
+    .catch(()=>{ MD[id]={status:'fehler',tage:[]}; })
+    .then(()=>{ if(U.screen==='mensa') render(); });
+  return MD[id];
+}
+function mensaKurz(k){
+  const c=MC[k]; if(!c||c.status==='laden') return 'lädt …';
+  if(c.status==='fehler') return 'keine Verbindung'; if(c.status==='leer') return 'kein Speiseplan';
+  const haupt=c.meals.filter(m=>m.category!=='Beilagen');
+  const pr=haupt.map(m=>m.prices&&m.prices.students).filter(p=>typeof p==='number');
+  return haupt.length+(haupt.length===1?' Gericht':' Gerichte')+(pr.length?' ab '+eur(Math.min(...pr)):'')+' ›';
+}
+function nachLaden(k){
+  if(U.screen==='mensa'){ render(); return; }
+  document.querySelectorAll(`[data-mi="${k}"]`).forEach(e=>e.textContent=mensaKurz(k));   // nur den kleinen Text tauschen, Eingaben bleiben
+}
+function mensaInfo(text,datum){
+  const id=mensaIdVon(text), k=id+'|'+datum; mensaDaten(id,datum);
+  return `<button class="minfo" data-mgo="${id}|${datum}"><span data-mi="${k}">${mensaKurz(k)}</span></button>`;
+}
+
+/* ---------- Seiten ---------- */
+function zeigeNav(){
+  $('#nav').innerHTML='<div class="logo">'+ente('froh',64)+'</div>'+NAV.map(([k,i,l])=>
+   `<button data-k="${k}" class="${U.screen===k?'on':''}"><span class="ic">${i}</span>${l}</button>`).join('');
+  $('#nav').querySelectorAll('button').forEach(b=>b.onclick=()=>geh(b.dataset.k));
+}
+function geh(screen){ U.screen=screen; render(); window.scrollTo(0,0); }
+
+function seiteStart(){
+  const h=new Date(), tag=tagHeute(h), datum=iso(h), heute=S.plan[tag];
+  const ausg=ausgegeben(S.einkauf), rest=S.ziel-ausg, proz=Math.min(100,Math.round(ausg/S.ziel*100));
+  const np=naechstePruefung(S.profil.pruefungen,h);
+  const liste=heute.map(b=>TYPEN[b.typ].icon+' '+esc(b.text||TYPEN[b.typ].label)).join(', ');
+  const satz=heute.length
+    ? sprich(`Heute steht an: ${liste}.`, liste, `Heute steht an: ${liste}. Das schaffst du locker, ich bin dabei! 💛`)
+    : sprich('Für heute ist noch nichts geplant. Zieh dir was in den Wochenplan!','Heute: nichts geplant.','Für heute ist noch nichts geplant. Wie wär’s mit Mensa oder was Leckerem selbst gekocht? Zieh es dir in den Wochenplan, ich helf dir!');
+  const mensaHeute=heute.filter(b=>b.typ==='mensa');
+  return `<h1>Hallo Löttmött! 👋</h1><p class="sub">${['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][h.getDay()]}, ${datum.slice(8)}.${datum.slice(5,7)}.</p>
+  <div class="ente-row">${ente(heute.length?'froh':'normal',140)}<div class="bubble">${gruss()} ${satz}
+   ${mensaHeute.map(b=>`<div style="margin-top:8px">🍽️ ${esc(mensaName(mensaIdVon(b.text)))}: ${mensaInfo(b.text,datum)}</div>`).join('')}</div></div>
+  ${np?`<div class="card"><h2>📚 ${np.tage===0?'Heute':'Noch '+np.tage+(np.tage===1?' Tag':' Tage')}: ${esc(np.n)}</h2><p class="hint" style="margin:0">${np.tage<=7?'Endspurt! Die Ente drückt dir alle Flügel. 🍀':'Genug Zeit, aber fang ruhig schon mal an. Die Ente zählt mit.'}</p></div>`:''}
+  <div class="card"><h2>${rest>=0?`Diese Woche noch übrig: ${eur(rest)}`:`Budget um ${eur(-rest)} überzogen`}</h2><div class="zaehler"><i style="width:${proz}%"></i></div>
+   <p class="hint">${eur(ausg)} von ${eur(S.ziel)} ausgegeben (abgehakte Einkäufe). ${rest>=0?'Gut gemacht!':'Nicht schlimm, nächste Woche wird’s wieder.'}</p></div>
+  <div class="grid">
+    <div class="card"><h2>📅 Wochenplan</h2><p class="hint">Einkaufen, Kochen, Mensa und Sonstiges per Finger in die Woche ziehen.</p><button class="btn" data-go="woche">Zur Woche</button></div>
+    <div class="card"><h2>🍽️ Mensa</h2><p class="hint">Was gibt’s heute in der ${esc(mensaName(S.profil.mensa))}?</p><button class="btn soft" data-go="mensa">Speiseplan</button></div>
+    <div class="card"><h2>🛒 Einkauf</h2><p class="hint">${S.einkauf.filter(x=>!x.done).length} Sachen auf der Liste.</p><button class="btn soft" data-go="einkauf">Zur Liste</button></div>
+  </div>
+  ${speicherFehler?'<p class="chip warn">Speichern klappt gerade nicht (privater Modus?)</p>':''}`;
+}
+
+function seiteWoche(){
+  const z=zaehle(S.plan), h=new Date(), heute=tagHeute(h);
+  return `<h1>Wochenplan</h1><p class="sub">Zieh einen Baustein am Griff ⋮⋮ auf einen Tag. Zurück in die Leiste ziehen = löschen.</p>
+  <div class="palette" id="pal"><span class="t">Bausteine:</span>${Object.keys(TYPEN).map(t=>`<div class="block pal ${t}" data-typ="${t}"><div class="kopf"><span>${TYPEN[t].icon}</span>${TYPEN[t].label}</div></div>`).join('')}</div>
+  <div class="woche">${TAGE.map(t=>{const d=datumFuerTag(t,h);
+    return `<div class="tag" ${t===heute?'style="outline:3px solid var(--gelb)"':''}><h3>${t} ${d.slice(8)}.${d.slice(5,7)}.</h3><div class="dayzone" data-tag="${t}">${S.plan[t].length?S.plan[t].map(b=>blockHtml(b,d)).join(''):'<div class="leer">hierher ziehen</div>'}</div></div>`}).join('')}</div>
+  <div class="card" style="margin-top:16px"><b>Diese Woche:</b> ${z.mensa}× Mensa · ${z.kochen}× Kochen · ${z.einkaufen}× Einkaufen · ${z.sonstiges}× Sonstiges</div>`;
+}
+function blockHtml(b,datum){
+  const T=TYPEN[b.typ];
+  const feld = b.typ==='mensa'
+    ? `<select data-ms="${b.id}" aria-label="Mensa wählen">${MENSEN.map(([id,n])=>`<option value="${id}" ${id===mensaIdVon(b.text)?'selected':''}>${esc(n)}</option>`).join('')}</select>${mensaInfo(b.text,datum)}`
+    : `<textarea rows="2" placeholder="${T.platz}" data-t="${b.id}">${esc(b.text)}</textarea>`;
+  return `<div class="block ${b.typ}" data-id="${b.id}"><div class="kopf"><span class="grip" title="Festhalten und ziehen">⋮⋮</span><span>${T.icon}</span>${T.label}<button class="x" data-x="${b.id}" aria-label="Löschen">✕</button></div>${feld}</div>`;
+}
+
+function seiteMensa(){
+  const id=U.mensa||S.profil.mensa, P=S.profil, td=mensaTage(id);
+  let datum=U.datum && td.tage.includes(U.datum) ? U.datum : td.tage[0];
+  let inhalt='';
+  if(td.status==='laden') inhalt='<p class="hint">Die Ente fragt nach dem Speiseplan …</p>';
+  else if(td.status==='fehler') inhalt='<div class="card">Keine Verbindung zum Speiseplan. <button class="btn soft" id="nochmal">Nochmal</button></div>';
+  else if(!datum) inhalt='<div class="card">Für die nächsten Tage gibt es noch keinen Speiseplan.</div>';
+  else {
+    const c=mensaDaten(id,datum);
+    const tage=`<div class="tage">${td.tage.map(d=>`<button class="${d===datum?'on':''}" data-tg="${d}">${datumKurz(d)}</button>`).join('')}</div>`;
+    let liste='';
+    if(c.status==='laden') liste='<p class="hint">lädt …</p>';
+    else if(c.status==='fehler') liste='<div class="card">Keine Verbindung. <button class="btn soft" id="nochmal">Nochmal</button></div>';
+    else if(c.status==='leer') liste='<div class="card">Für diesen Tag gibt es keinen Speiseplan.</div>';
+    else {
+      const haupt=c.meals.filter(m=>m.category!=='Beilagen'), beil=c.meals.filter(m=>m.category==='Beilagen');
+      const karte=m=>{ const w=warnungen(m,P), n=(m.notes||[]).map(x=>String(x).toLowerCase()), p=m.prices&&m.prices.students;
+        const mag=P.mag.some(x=>m.name.toLowerCase().includes(x.toLowerCase()));
+        return `<div class="card"><div class="gericht"><div><h2 style="margin:0 0 6px">${mag?'💛 ':''}${esc(gerichtName(m.name))}</h2>
+          ${n.includes('vegan')?'<span class="chip ok">vegan</span> ':n.includes('vegetarisch')?'<span class="chip ok">vegetarisch</span> ':''}
+          ${w.map(x=>`<span class="chip warn">⚠️ ${esc(x)}</span>`).join(' ')}</div><div class="preis">${typeof p==='number'?eur(p):''}</div></div></div>`; };
+      liste=haupt.map(karte).join('')+(beil.length?`<div class="card"><h2>Beilagen</h2>${beil.map(m=>`<div class="zeile"><span class="n">${esc(gerichtName(m.name))}</span><b>${m.prices&&typeof m.prices.students==='number'?eur(m.prices.students):''}</b></div>`).join('')}</div>`:'');
+    }
+    const woche=TAGE.map(t=>datumFuerTag(t,new Date()));
+    inhalt=tage+liste+(woche.includes(datum)?`<p><button class="btn" id="inplan">In den Wochenplan (${tagVonDatum(datum)})</button></p>`:'');
+  }
+  return `<h1>Mensa</h1><p class="sub">Echte Speisepläne für Münster, Preise für Studierende.</p>
+  <div class="mensen mzeile">${MENSEN.map(([m,n])=>`<button class="klein ${m===id?'on':''}" data-mz="${m}">${esc(n)}</button>`).join('')}</div>
+  ${inhalt}
+  <p class="hint">⚠️ = passt nicht zu deinem Profil, 💛 = magst du. Daten von OpenMensa (Freiwillige). Allergien bitte immer an der Theke nachfragen, die Ente kann sich irren.</p>`;
+}
+
+function seiteEinkauf(){
+  const ausg=ausgegeben(S.einkauf), rest=S.ziel-ausg, L=S.profil.laeden;
+  const offen=S.einkauf.map((x,i)=>[x,i]).filter(([x])=>!x.done), fertig=S.einkauf.map((x,i)=>[x,i]).filter(([x])=>x.done);
+  const zeile=([x,i])=>`<div class="zeile"><input type="checkbox" data-chk="${i}" ${x.done?'checked':''} style="width:26px;height:26px;flex:none"><span class="n" style="${x.done?'text-decoration:line-through;opacity:.5':''}">${esc(x.n)}</span>${x.s?`<span class="chip">${esc(x.s)}</span>`:''}<b>${typeof x.p==='number'?eur(x.p):''}</b><button class="btn soft" data-edel="${i}" style="padding:5px 11px">✕</button></div>`;
+  return `<h1>Einkaufsliste</h1><p class="sub">Abhaken, wenn gekauft. Mit Preis zählt es fürs Wochenbudget.</p>
+  <div class="card">${offen.length?offen.map(zeile).join(''):'<p class="hint">Liste ist leer. 🎉</p>'}
+   <div class="zeile ezeile" style="flex-wrap:wrap"><input type="text" id="en" placeholder="Neu: z. B. Nudeln" style="flex:2 1 160px" enterkeyhint="done"><input type="text" id="ep" inputmode="decimal" placeholder="Preis (frei)" style="flex:1 1 90px;width:90px">
+   ${L.length?`<select id="el"><option value="">Laden?</option>${L.map(l=>`<option>${esc(l)}</option>`).join('')}</select>`:''}<button class="btn soft" id="ea">+</button></div>
+   <p class="hint" id="efehl" style="margin:4px 0 0"></p></div>
+  ${fertig.length?`<div class="card"><h2>Schon gekauft</h2>${fertig.map(zeile).join('')}</div>`:''}
+  <div class="card"><h2>${rest>=0?'Noch übrig: '+eur(rest):'Überzogen: '+eur(-rest)}</h2><div class="zaehler"><i style="width:${Math.min(100,ausg/S.ziel*100)}%"></i></div><p class="hint">Wochenbudget ${eur(S.ziel)} (ändern im Profil). Am Montag fängt die Woche neu an.</p></div>`;
+}
+
+function seiteBald(titel,text){
+  return `<h1>${titel}</h1><div class="ente-row">${ente('schlaf',130)}<div class="bubble"><b>Kommt bald!</b> ${text}</div></div>`;
+}
+
+/* ---------- Profil ---------- */
+function liste(key,cls,platz){
+  const L=S.profil[key];
+  return `<div class="chips">${L.length?L.map((w,i)=>`<span class="chip ${cls}">${esc(w)} <button class="cx" data-rm="${key}|${i}" aria-label="entfernen">✕</button></span>`).join(''):'<span class="hint">Noch nichts eingetragen.</span>'}</div>
+  <div class="zeile"><input type="text" data-in="${key}" placeholder="${platz}" style="flex:1" enterkeyhint="done"><button class="btn soft" data-add="${key}">+</button></div>`;
+}
+function wahl(name,werte,aktuell){ return `<div class="wahl">${werte.map(([w,l])=>`<button class="${w===aktuell?'on':''}" data-${name}="${w}">${l}</button>`).join('')}</div>`; }
+function seiteProfil(){
+  const P=S.profil, r=U.reiter, heute=new Date(); let inhalt='';
+  if(r==='essen') inhalt=`<div class="card"><h2>Mag ich nicht</h2>${liste('magNicht','warn','z. B. Zucchini')}</div>
+    <div class="card"><h2>Mag ich sehr</h2>${liste('mag','ok','z. B. Nudeln')}</div>
+    <div class="card"><h2>Allergien / vertrage ich nicht</h2>${liste('allergien','','z. B. Nüsse')}</div>
+    <div class="card"><h2>Ich esse</h2>${wahl('ern',[['alles','Alles'],['vegetarisch','Vegetarisch'],['vegan','Vegan']],P.ernaehrung)}</div>
+    <p class="hint">In der Mensa markiert die Ente, was nicht passt (⚠️) und was du magst (💛).</p>`;
+  if(r==='geld') inhalt=`<div class="card"><h2>Wochenbudget für Einkäufe</h2><div class="zeile"><input type="text" inputmode="decimal" id="budget" value="${String(S.ziel).replace('.',',')}" style="width:120px"> <span>€ pro Woche</span></div>
+    <p class="hint">Danach richten sich Einkaufsliste und Spar-Zähler.</p></div>
+    <div class="card"><h2>Meine Läden</h2>${liste('laeden','','z. B. Aldi')}</div>`;
+  if(r==='mensa') inhalt=`<div class="card"><h2>Meine Lieblingsmensa</h2><div class="mensen">${MENSEN.map(([m,n])=>`<button class="${m===P.mensa?'on':''}" data-mensa="${m}">🍽️ ${esc(n)}</button>`).join('')}</div>
+    <p class="hint">Neue Mensa-Bausteine im Wochenplan bekommen diese Mensa automatisch.</p></div>`;
+  if(r==='pruef') inhalt=`<div class="card"><h2>Meine Prüfungen</h2>${P.pruefungen.length?P.pruefungen.map((p,i)=>{const t=tageBis(p.d,heute);
+      return `<div class="zeile"><span class="n">${esc(p.n)}</span><span class="chip ${t>=0&&t<=7?'warn':''}">${isNaN(t)?'Datum fehlt':t<0?'vorbei 🎉':t===0?'heute!':'in '+t+(t===1?' Tag':' Tagen')}</span><button class="btn soft" data-prm="${i}" style="padding:5px 12px">✕</button></div>`}).join(''):'<p class="hint">Noch keine Prüfung eingetragen.</p>'}
+    <div class="pzeile"><input type="text" id="pname" placeholder="Fach, z. B. Statistik"><input type="date" id="pdatum" aria-label="Datum"><button class="btn soft" id="padd">+</button></div></div>
+    <p class="hint">Die nächste Prüfung zählt die Ente auf der Startseite herunter.</p>`;
+  if(r==='ente') inhalt=`<div class="card"><h2>Name der Ente</h2><div class="zeile"><input type="text" id="ename" value="${esc(P.enteName)}" placeholder="Darf sie einen Namen haben?" style="flex:1" enterkeyhint="done"></div></div>
+    <div class="card"><h2>Wie viel soll sie reden?</h2>${wahl('gs',[['wenig','Wenig'],['normal','Normal'],['viel','Viel']],P.gespraechig)}
+    <div class="ente-row" style="margin:14px 0 0">${ente(P.gespraechig==='wenig'?'normal':'froh',80)}<div class="bubble">${sprich('Quak! Heute ist Mensa-Tag. Lass es dir schmecken!','Quak. Heute Mensa.','Quak quak! Heute ist Mensa-Tag, und ich hab schon geschaut: Es gibt was Leckeres. Ich glaub an dich! 💛')}</div></div></div>`;
+  return `<h1>Mein Profil</h1><p class="sub">Hier trägst du ein, was die Ente über dich wissen soll.</p>
+  <div class="reiter">${REITER.map(([k,i,l])=>`<button class="${k===r?'on':''}" data-reiter="${k}">${i} ${l}</button>`).join('')}</div>${inhalt}`;
+}
+
+/* ---------- Zeichnen und Speichern ---------- */
+function render(){
+  speichere();
+  zeigeNav();
+  $('#main').innerHTML=({start:seiteStart,woche:seiteWoche,mensa:seiteMensa,einkauf:seiteEinkauf,profil:seiteProfil,
+    kuehl:()=>seiteBald('Kühlschrank','Bald machst du hier ein Foto von deinem Kühlschrank, und ich schlage dir Rezepte aus deinen Resten vor.'),
+    preis:()=>seiteBald('Preis-Check','Bald schaue ich hier für dich nach, ob es etwas woanders oder gebraucht günstiger gibt.')})[U.screen]();
+  bindeSeite();
+}
+function bindeSeite(){
+  const m=$('#main'), q=s=>m.querySelector(s), qa=s=>m.querySelectorAll(s);
+  qa('[data-go]').forEach(b=>b.onclick=()=>geh(b.dataset.go));
+  qa('[data-mgo]').forEach(b=>b.onclick=()=>{const [id,d]=b.dataset.mgo.split('|'); U.mensa=+id; U.datum=d; geh('mensa');});
+  if(U.screen==='woche') bindeWoche();
+  if(U.screen==='profil') bindeProfil(q,qa);
+  if(U.screen==='einkauf') bindeEinkauf(q,qa);
+  if(U.screen==='mensa'){
+    const an=q('.mzeile .on'); if(an) an.scrollIntoView({block:'nearest',inline:'center'});
+    qa('[data-mz]').forEach(b=>b.onclick=()=>{U.mensa=+b.dataset.mz; U.datum=null; render();});
+    qa('[data-tg]').forEach(b=>b.onclick=()=>{U.datum=b.dataset.tg; render();});
+    if(q('#nochmal')) q('#nochmal').onclick=()=>{ Object.keys(MC).forEach(k=>{if(MC[k].status==='fehler') delete MC[k]}); Object.keys(MD).forEach(k=>{if(MD[k].status==='fehler') delete MD[k]}); render(); };
+    if(q('#inplan')) q('#inplan').onclick=()=>{ const id=U.mensa||S.profil.mensa, td=MD[id], d=U.datum&&td.tage.includes(U.datum)?U.datum:td.tage[0];
+      einfuegen(S.plan,tagVonDatum(d),99,neuerBlock('mensa',mensaName(id))); speichere(); q('#inplan').textContent='✓ Im Wochenplan'; q('#inplan').disabled=true; };
+  }
+}
+function bindeEinkauf(q,qa){
+  qa('[data-chk]').forEach(c=>c.onchange=()=>{S.einkauf[+c.dataset.chk].done=c.checked; render();});
+  qa('[data-edel]').forEach(b=>b.onclick=()=>{S.einkauf.splice(+b.dataset.edel,1); render();});
+  const add=()=>{ const n=q('#en').value.trim().replace(/\s+/g,' '), p=parsePreis(q('#ep').value);
+    if(!n){ q('#en').focus(); return; }
+    if(Number.isNaN(p)){ q('#efehl').textContent='Der Preis sieht komisch aus. Beispiel: 1,49'; q('#ep').focus(); return; }
+    S.einkauf.push({n:n.slice(0,60),p,s:q('#el')?q('#el').value:'',done:false}); render(); const e=$('#main').querySelector('#en'); if(e) e.focus(); };
+  q('#ea').onclick=add; q('#en').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}}; q('#ep').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}};
+}
+function bindeProfil(q,qa){
+  const P=S.profil;
+  qa('[data-reiter]').forEach(b=>b.onclick=()=>{U.reiter=b.dataset.reiter;render()});
+  qa('[data-add]').forEach(b=>{
+    const key=b.dataset.add, inp=q(`input[data-in="${key}"]`);
+    const go=()=>{ if(fuegeHinzu(P[key],inp.value.slice(0,40))){ render(); const n=$('#main').querySelector(`input[data-in="${key}"]`); if(n) n.focus(); } else inp.value=''; };
+    b.onclick=go; inp.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();go()} };
+  });
+  qa('[data-rm]').forEach(b=>b.onclick=()=>{const [k,i]=b.dataset.rm.split('|'); P[k].splice(+i,1); render()});
+  qa('[data-ern]').forEach(b=>b.onclick=()=>{P.ernaehrung=b.dataset.ern;render()});
+  qa('[data-gs]').forEach(b=>b.onclick=()=>{P.gespraechig=b.dataset.gs;render()});
+  qa('[data-mensa]').forEach(b=>b.onclick=()=>{P.mensa=+b.dataset.mensa;render()});
+  qa('[data-prm]').forEach(b=>b.onclick=()=>{P.pruefungen.splice(+b.dataset.prm,1);render()});
+  if(q('#padd')) q('#padd').onclick=()=>{const n=q('#pname').value.trim().slice(0,40), d=q('#pdatum').value;
+    if(!n||!d){ q(!n?'#pname':'#pdatum').focus(); return; }
+    P.pruefungen.push({n,d}); P.pruefungen.sort((a,b)=>a.d<b.d?-1:1); render();};
+  if(q('#budget')) q('#budget').onchange=()=>{const v=parsePreis(q('#budget').value); if(v>0) S.ziel=v; render();};
+  if(q('#ename')){ const e=q('#ename'); e.onchange=()=>{P.enteName=e.value.trim().slice(0,20);render()}; e.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();e.blur()}}; }
+}
+
+/* ---------- Ziehen und Ablegen (Pointer-Ereignisse: Finger und Maus) ---------- */
+function bindeWoche(){
+  const m=$('#main');
+  m.querySelectorAll('textarea[data-t]').forEach(i=>{
+    i.oninput=()=>{const f=findeBlock(S.plan,i.dataset.t); if(f){ S.plan[f.tag][f.index].text=i.value.slice(0,120); speichere(); }};
+    i.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault(); i.blur();} };
+  });
+  m.querySelectorAll('select[data-ms]').forEach(s=>s.onchange=()=>{const f=findeBlock(S.plan,s.dataset.ms); if(f){ S.plan[f.tag][f.index].text=mensaName(+s.value); render(); }});
+  m.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{entfernen(S.plan,b.dataset.x);render()});
+  m.querySelectorAll('.block.pal').forEach(el=>el.addEventListener('pointerdown',e=>start(e,el,{typ:el.dataset.typ})));
+  m.querySelectorAll('.block[data-id] .grip').forEach(g=>{const el=g.closest('.block'); g.addEventListener('pointerdown',e=>start(e,el,{id:el.dataset.id}))});
+}
+function start(e,el,what){
+  e.preventDefault();
+  const g=el.cloneNode(true); g.classList.add('ghost'); document.body.appendChild(g);
+  const move=(x,y)=>{g.style.left=(x-85)+'px'; g.style.top=(y-20)+'px';
+    document.querySelectorAll('.dayzone').forEach(z=>z.classList.remove('over'));
+    const z=zoneBei(x,y); if(z) z.classList.add('over');};
+  move(e.clientX,e.clientY);
+  const mv=ev=>move(ev.clientX,ev.clientY);
+  const up=ev=>{
+    document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); document.removeEventListener('pointercancel',up);
+    g.remove();
+    const z=ev.type==='pointercancel'?null:zoneBei(ev.clientX,ev.clientY);
+    if(z){
+      const idx=einfuegeIndex(z,ev.clientY);
+      if(what.typ) einfuegen(S.plan,z.dataset.tag,idx,neuerBlock(what.typ,what.typ==='mensa'?mensaName(S.profil.mensa):''));
+      else verschieben(S.plan,what.id,z.dataset.tag,idx);
+    } else if(what.id && ev.type!=='pointercancel' && ueberPalette(ev.clientX,ev.clientY)){ entfernen(S.plan,what.id); }
+    render();
+  };
+  document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up); document.addEventListener('pointercancel',up);
+}
+function zoneBei(x,y){ const e=document.elementFromPoint(x,y); return e? e.closest('.dayzone'):null; }
+function ueberPalette(x,y){ const e=document.elementFromPoint(x,y); return !!(e&&e.closest('#pal')); }
+function einfuegeIndex(zone,y){ let i=0; for(const k of zone.querySelectorAll('.block')){ const r=k.getBoundingClientRect(); if(y>r.top+r.height/2) i++; } return i; }
+
+/* ---------- Begrüßung (nur beim allerersten Öffnen) ---------- */
+const hp=location.hash.slice(1).split(',');
+if(!S.begruesst && hp[1]!=='x'){
+  $('#hallo').innerHTML=`<div class="karte">${ente('froh',130)}<h1>Alles Gute zum Geburtstag, Löttmött! 🎂</h1>
+  <p>Deine Ente hat sich was für dich ausgedacht: Sie schaut in deinen Kühlschrank, plant mit dir die Woche und passt auf dein Geld auf.</p><p class="hint">Dein Kneggbert</p><button class="btn" id="los">Los geht's</button></div>`;
+  $('#los').onclick=()=>{ S.begruesst=true; speichere(); $('#hallo').remove(); };
+} else $('#hallo').remove();
+/* Test-Einstieg: index.html#seite,x,reiter */
+if(NAV.some(n=>n[0]===hp[0])) U.screen=hp[0];
+if(hp[2]&&REITER.some(r=>r[0]===hp[2])) U.reiter=hp[2];
+/* Kommt sie nach Tagen zurück (App war im Hintergrund), neue Woche prüfen und neu zeichnen */
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && !(document.activeElement&&document.activeElement.matches('input,textarea,select'))){ neueWoche(S,new Date()); render(); } });
+render();
+}
+</script>
+</body>
+</html>
