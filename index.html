@@ -241,11 +241,18 @@ function rueckblick(st){
   return {wochen:V.length+1, kochen:kochen.length, mensa:mensa.length, lieblingsGericht:haeufigstes(kochen), lieblingsMensa:haeufigstes(mensa),
     gespart, sparWochen:mitEinkauf.length, fotos:z.fotos|0, preis:z.preis|0, seit:st.seit||''};
 }
+/* Kleinanzeigen: die App (iPhone/Android) übernimmt alle Links /s-… , versteht aber nur die Kurzform
+   /s-<suchwort>/k0 (so baut Kleinanzeigen selbst um: klein, Leerzeichen und / werden -, Rest kodiert) */
+function kaLink(q){
+  const slug=String(q||'').trim().toLowerCase().replace(/[\s\/]+/g,'-').replace(/^-+|-+$/g,'').slice(0,120);
+  if(!slug) return 'https://www.kleinanzeigen.de/s-buecher-zeitschriften/c76';
+  return 'https://www.kleinanzeigen.de/s-'+encodeURIComponent(slug).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())+'/k0';
+}
 /* Bücher & Second-Hand: Such-Links (Suchbegriff sicher in die Adresse) */
 function buchLinks(q){
   const s=encodeURIComponent(String(q||'').trim().replace(/\s+/g,' ').slice(0,120)); if(!s) return [];
   return [['🏛️ Uni-Bibliothek (gratis leihen)','https://hbz-ulbms.primo.exlibrisgroup.com/discovery/search?vid=49HBZ_ULM:VU2&lang=de&query=any,contains,'+s],
-    ['Kleinanzeigen','https://www.kleinanzeigen.de/s-suchanfrage.html?keywords='+s],
+    ['Kleinanzeigen',kaLink(q)],
     ['Vinted','https://www.vinted.de/catalog?search_text='+s],
     ['Medimops','https://www.medimops.de/produkte-C0/?fcIsSearch=1&searchparam='+s],
     ['ZVAB (Antiquariate)','https://www.zvab.com/servlet/SearchResults?kn='+s],
@@ -293,7 +300,39 @@ function pruefePreis(d){
     angebote:(Array.isArray(d.angebote)?d.angebote:[]).slice(0,4).map(a=>({wo:txt(a&&a.wo,80),preis:txt(a&&a.preis,30),zustand:['neu','gebraucht'].includes(a&&a.zustand)?a.zustand:'unklar',link:sichererLink(a&&a.link)})).filter(a=>a.wo),
     produkt:txt(d.produkt,200), meinPreis:txt(d.meinPreis,20), zeit:typeof d.zeit==='number'&&d.zeit>0?d.zeit:Date.now()};
 }
-if(typeof module!=='undefined') module.exports={TAGE,TYPEN,neuerBlock,leererPlan,findeBlock,einfuegen,verschieben,entfernen,zaehle,
+/* Gespeicherte Daten prüfen (Gerätespeicher UND Sicherungsdatei): Kaputtes wird übersprungen, nie übernommen */
+function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null, seit:'', zaehler:{fotos:0,preis:0},
+  profil:{magNicht:[],mag:[],allergien:[],ernaehrung:'alles',laeden:[],mensa:1169,pruefungen:[],enteName:'',gespraechig:'normal'}}; }
+function pruefeDaten(d){
+  const s=standard();
+  if(!d || typeof d!=='object' || Array.isArray(d)) return s;
+  if(typeof d.ziel==='number'&&d.ziel>0&&isFinite(d.ziel)) s.ziel=d.ziel;
+  if(Array.isArray(d.einkauf)) s.einkauf=d.einkauf.filter(x=>x&&typeof x.n==='string').map(x=>({n:x.n,p:typeof x.p==='number'&&isFinite(x.p)?x.p:null,s:typeof x.s==='string'?x.s:'',done:!!x.done}));
+  if(d.plan && TAGE.every(t=>Array.isArray(d.plan[t]))) TAGE.forEach(t=>{ s.plan[t]=d.plan[t].filter(b=>b&&TYPEN[b.typ]&&typeof b.id==='string').map(b=>({id:b.id,typ:b.typ,text:typeof b.text==='string'?b.text:''})); });
+  if(typeof d.woche==='string') s.woche=d.woche;
+  if(Array.isArray(d.verlauf)) s.verlauf=d.verlauf.filter(v=>v&&typeof v.woche==='string');
+  s.begruesst=!!d.begruesst;
+  if(typeof d.kicode==='string'&&/^[A-Za-z0-9_-]{0,64}$/.test(d.kicode)) s.kicode=d.kicode;
+  if(d.kuehl) s.kuehl=pruefeKuehl(d.kuehl);
+  if(d.preis) s.preis=pruefePreis(d.preis);
+  if(typeof d.seit==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d.seit)) s.seit=d.seit;
+  if(d.zaehler&&typeof d.zaehler==='object') ['fotos','preis'].forEach(k=>{ const v=d.zaehler[k]; if(Number.isInteger(v)&&v>=0) s.zaehler[k]=v; });
+  if(d.profil&&typeof d.profil==='object') Object.keys(s.profil).forEach(k=>{ const v=d.profil[k]; if(v!==undefined && v!==null && typeof v===typeof s.profil[k] && Array.isArray(v)===Array.isArray(s.profil[k])) s.profil[k]=v; });
+  ['magNicht','mag','allergien','laeden'].forEach(k=>{ s.profil[k]=s.profil[k].filter(x=>typeof x==='string').map(x=>x.slice(0,40)); });
+  s.profil.pruefungen=s.profil.pruefungen.filter(p=>p&&typeof p.n==='string'&&typeof p.d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(p.d)).map(p=>({n:p.n.slice(0,40),d:p.d}));
+  if(!isFinite(s.profil.mensa)) s.profil.mensa=1169;
+  return s;
+}
+function zuSpeichern(S){ return {ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,seit:S.seit,zaehler:S.zaehler,profil:S.profil}; }
+/* Sicherungsdatei: {app:'studi-ente', version:1, datum, daten:{…}} */
+function sicherungMachen(S,jetzt){ return JSON.stringify({app:'studi-ente',version:1,datum:iso(jetzt||new Date()),daten:zuSpeichern(S)}); }
+function sicherungLesen(text){
+  if(typeof text!=='string'||text.length>2000000) return {fehler:'Die Datei ist zu groß. Ist das wirklich eine Enten-Sicherung?'};
+  let d; try{ d=JSON.parse(text); }catch(e){ return {fehler:'Die Datei kann ich nicht lesen. Ist das wirklich eine Enten-Sicherung?'}; }
+  if(!d||d.app!=='studi-ente'||!d.daten||typeof d.daten!=='object') return {fehler:'Das ist keine Enten-Sicherung. Quak?'};
+  return {daten:pruefeDaten(d.daten), datum:typeof d.datum==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d.datum)?d.datum:''};
+}
+if(typeof module!=='undefined') module.exports={standard,pruefeDaten,zuSpeichern,sicherungMachen,sicherungLesen,TAGE,TYPEN,neuerBlock,leererPlan,findeBlock,einfuegen,verschieben,entfernen,zaehle,
   fuegeHinzu,tageBis,naechstePruefung,iso,montagVon,tagHeute,datumFuerTag,tagVonDatum,parsePreis,ausgegeben,neueWoche,gerichtName,warnungen,
   fehlendeHinzu,codeAusAdresse,bildGroesse,pruefeKuehl,sichererLink,pruefePreis,planTexte,haeufigstes,rueckblick,buchLinks};
 </script>
@@ -304,34 +343,16 @@ if(typeof document!=='undefined'){
 const KEY='studi-ente-v1';
 const MENSEN=[[1169,'Mensa Am Ring'],[1170,'Mensa Aasee'],[1171,'Mensa Da Vinci'],[1213,'Mensa Bispinghof'],[1214,'Bistro Oeconomicum'],[1172,'Bistro Denkpause'],[1238,'Bistro Katholische Hochschule']];
 const REITER=[['essen','🥕','Essen'],['geld','💶','Geld'],['mensa','🍽️','Mensa'],['pruef','📚','Prüfungen'],['ente','🦆','Ente']];
-function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null, seit:'', zaehler:{fotos:0,preis:0},
-  profil:{magNicht:[],mag:[],allergien:[],ernaehrung:'alles',laeden:[],mensa:1169,pruefungen:[],enteName:'',gespraechig:'normal'}}; }
 function lade(){
-  const s=standard();
-  try{
-    const d=JSON.parse(localStorage.getItem(KEY)||'null');
-    if(d && typeof d==='object'){
-      if(typeof d.ziel==='number'&&d.ziel>0&&isFinite(d.ziel)) s.ziel=d.ziel;
-      if(Array.isArray(d.einkauf)) s.einkauf=d.einkauf.filter(x=>x&&typeof x.n==='string').map(x=>({n:x.n,p:typeof x.p==='number'&&isFinite(x.p)?x.p:null,s:typeof x.s==='string'?x.s:'',done:!!x.done}));
-      if(d.plan && TAGE.every(t=>Array.isArray(d.plan[t]))) TAGE.forEach(t=>{ s.plan[t]=d.plan[t].filter(b=>b&&TYPEN[b.typ]&&typeof b.id==='string').map(b=>({id:b.id,typ:b.typ,text:typeof b.text==='string'?b.text:''})); });
-      if(typeof d.woche==='string') s.woche=d.woche;
-      if(Array.isArray(d.verlauf)) s.verlauf=d.verlauf.filter(v=>v&&typeof v.woche==='string');
-      s.begruesst=!!d.begruesst;
-      if(typeof d.kicode==='string') s.kicode=d.kicode;
-      if(d.kuehl) s.kuehl=pruefeKuehl(d.kuehl);
-      if(d.preis) s.preis=pruefePreis(d.preis);
-      if(typeof d.seit==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d.seit)) s.seit=d.seit;
-      if(d.zaehler&&typeof d.zaehler==='object') ['fotos','preis'].forEach(k=>{ const v=d.zaehler[k]; if(Number.isInteger(v)&&v>=0) s.zaehler[k]=v; });
-      if(d.profil) Object.keys(s.profil).forEach(k=>{ if(d.profil[k]!==undefined && typeof d.profil[k]===typeof s.profil[k]) s.profil[k]=d.profil[k]; });
-    }
-  }catch(e){}
-  return s;
+  try{ return pruefeDaten(JSON.parse(localStorage.getItem(KEY)||'null')); }catch(e){ return standard(); }
 }
 let speicherFehler=false;
 function speichere(){
-  try{ localStorage.setItem(KEY, JSON.stringify({ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,seit:S.seit,zaehler:S.zaehler,profil:S.profil})); speicherFehler=false; }
+  try{ localStorage.setItem(KEY, JSON.stringify(zuSpeichern(S))); speicherFehler=false; }
   catch(e){ speicherFehler=true; }
 }
+/* Browser bitten, die Daten nicht von selbst zu löschen (Safari räumt sonst nach 7 Tagen ohne Besuch auf) */
+try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
 const S=lade();
 const U={screen:'start', reiter:'essen', mensa:null, datum:null, kuehl:{status:'leer'}, preis:{status:'leer'}, buch:''};   // nur Bildschirm-Zustand, wird nicht gespeichert
 neueWoche(S,new Date());
@@ -547,8 +568,15 @@ function seiteEinkauf(){
   <div class="card"><h2>${rest>=0?'Noch übrig: '+eur(rest):'Überzogen: '+eur(-rest)}</h2><div class="zaehler"><i style="width:${Math.min(100,ausg/S.ziel*100)}%"></i></div><p class="hint">Wochenbudget ${eur(S.ziel)} (ändern im Profil). Am Montag fängt die Woche neu an.</p></div>`;
 }
 
+/* Home-Bildschirm-App auf dem iPhone hat eigenen Speicher: Code aus Safari kommt dort nicht an */
+const alsIphoneApp=()=>typeof navigator!=='undefined'&&navigator.standalone===true;
 function codeEingabe(titel,text){
-  return `<h1>${titel}</h1><div class="ente-row">${ente('normal',120)}<div class="bubble">${gruss()} ${esc(text)}</div></div>
+  const hilfe=alsIphoneApp()
+    ? `<div class="card"><h2>So kommt der Code ganz leicht rein</h2><p class="hint" style="margin:0 0 6px">Dieses Enten-Symbol kennt deine Karte noch nicht. Einmal neu anlegen, dann klappt's:</p>
+      <ol style="margin:0;padding-left:22px;line-height:1.6"><li>Ente auf dem Home-Bildschirm lange drücken → <b>App entfernen</b>.</li><li>Den QR-Code auf deiner Karte mit der <b>Kamera</b> scannen.</li><li>In Safari unten auf <b>Teilen</b> (□↑) → <b>Zum Home-Bildschirm</b>.</li></ol>
+      <p class="hint" style="margin:6px 0 0">Keine Sorge: Deinen Plan vorher im Profil unter 🦆 Ente sichern, dann holst du ihn danach zurück.</p></div>`
+    : `<p class="hint" style="margin:0 0 10px">Am leichtesten: Scanne einfach nochmal den QR-Code auf deiner Karte. 🦆</p>`;
+  return `<h1>${titel}</h1><div class="ente-row">${ente('normal',120)}<div class="bubble">${gruss()} ${esc(text)}</div></div>${hilfe}
     <div class="card"><div class="zeile"><input type="text" id="kcode" placeholder="Zugangscode" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1" enterkeyhint="done"><button class="btn" id="kok">OK</button></div><p class="hint" id="kfehl" style="margin:4px 0 0"></p></div>`;
 }
 function seiteKuehl(){
@@ -663,7 +691,12 @@ function seiteProfil(){
     <p class="hint">Die nächste Prüfung zählt die Ente auf der Startseite herunter.</p>`;
   if(r==='ente') inhalt=`<div class="card"><h2>Name der Ente</h2><div class="zeile"><input type="text" id="ename" value="${esc(P.enteName)}" placeholder="Darf sie einen Namen haben?" style="flex:1" enterkeyhint="done"></div></div>
     <div class="card"><h2>Wie viel soll sie reden?</h2>${wahl('gs',[['wenig','Wenig'],['normal','Normal'],['viel','Viel']],P.gespraechig)}
-    <div class="ente-row" style="margin:14px 0 0">${ente(P.gespraechig==='wenig'?'normal':'froh',80)}<div class="bubble">${sprich('Quak! Heute ist Mensa-Tag. Lass es dir schmecken!','Quak. Heute Mensa.','Quak quak! Heute ist Mensa-Tag, und ich hab schon geschaut: Es gibt was Leckeres. Ich glaub an dich! 💛')}</div></div></div>`;
+    <div class="ente-row" style="margin:14px 0 0">${ente(P.gespraechig==='wenig'?'normal':'froh',80)}<div class="bubble">${sprich('Quak! Heute ist Mensa-Tag. Lass es dir schmecken!','Quak. Heute Mensa.','Quak quak! Heute ist Mensa-Tag, und ich hab schon geschaut: Es gibt was Leckeres. Ich glaub an dich! 💛')}</div></div></div>
+    <div class="card" id="sicherung"><h2>💾 Deine Daten sichern</h2>
+    <p class="hint" style="margin:0 0 8px">Wochenplan, Profil, Einkaufsliste und dein Kochjahr wohnen nur auf diesem Gerät. Mit einer Sicherung nimmst du sie auf ein neues Handy mit, und nichts geht verloren.</p>
+    <div class="knoepfe"><button class="btn" id="sich-mach">💾 Sicherung speichern</button>
+    <label class="btn soft">📂 Sicherung zurückholen<input type="file" accept=".json,application/json" class="versteckt" id="sich-hol"></label></div>
+    <p class="hint" id="sich-info" style="margin:8px 0 0">${U.sicherungInfo?esc(U.sicherungInfo):'Tipp: Speicher die Sicherung in „Dateien“ oder schick sie dir selbst. Gib sie aber niemandem, da ist auch dein Zugangscode drin.'}</p></div>`;
   return `<h1>Mein Profil</h1><p class="sub">Hier trägst du ein, was die Ente über dich wissen soll.</p>
   <div class="reiter">${REITER.map(([k,i,l])=>`<button class="${k===r?'on':''}" data-reiter="${k}">${i} ${l}</button>`).join('')}</div>${inhalt}`;
 }
@@ -750,6 +783,32 @@ function bindeProfil(q,qa){
     P.pruefungen.push({n,d}); P.pruefungen.sort((a,b)=>a.d<b.d?-1:1); render();};
   if(q('#budget')) q('#budget').onchange=()=>{const v=parsePreis(q('#budget').value); if(v>0) S.ziel=v; render();};
   if(q('#ename')){ const e=q('#ename'); e.onchange=()=>{P.enteName=e.value.trim().slice(0,20);render()}; e.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();e.blur()}}; }
+  if(q('#sich-mach')) q('#sich-mach').onclick=sicherungSpeichern;
+  if(q('#sich-hol')) q('#sich-hol').onchange=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f) sicherungHolen(f); };
+}
+/* Sicherung: am iPhone/Android über „Teilen“ (→ In Dateien sichern), sonst als Download */
+async function sicherungSpeichern(){
+  const name='ente-sicherung-'+iso(new Date())+'.json', text=sicherungMachen(S,new Date());
+  try{
+    const f=new File([text],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:'Ente-Sicherung'}); U.sicherungInfo='Gesichert! 🦆 Gut aufheben.'; render(); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'application/json'})); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+  U.sicherungInfo='Gesichert als „'+name+'“ (bei den Downloads). 🦆'; render();
+}
+function sicherungHolen(f){
+  if(f.size>2000000){ U.sicherungInfo='Die Datei ist zu groß. Ist das wirklich eine Enten-Sicherung?'; render(); return; }
+  const r=new FileReader();
+  r.onload=()=>{ const erg=sicherungLesen(String(r.result));
+    if(erg.fehler){ U.sicherungInfo=erg.fehler; render(); return; }
+    const wann=erg.datum?' vom '+new Date(erg.datum+'T12:00').toLocaleDateString('de-DE'):'';
+    if(!confirm('Sicherung'+wann+' zurückholen? Alles, was jetzt in der App steht, wird dadurch ersetzt.')) return;
+    const altCode=S.kicode; Object.assign(S,erg.daten); if(!S.kicode) S.kicode=altCode;
+    neueWoche(S,new Date()); if(!S.seit) S.seit=iso(new Date());
+    U.sicherungInfo='Zurückgeholt! Alles wieder da. Quak! 💛'; speichere(); render(); };
+  r.onerror=()=>{ U.sicherungInfo='Die Datei konnte ich nicht öffnen.'; render(); };
+  r.readAsText(f);
 }
 
 /* ---------- Ziehen und Ablegen (Pointer-Ereignisse: Finger und Maus) ---------- */
