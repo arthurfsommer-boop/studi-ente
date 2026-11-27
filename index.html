@@ -407,6 +407,9 @@ function mensaInfo(text,datum){
 
 /* ---------- KI-Server (Kühlschrank) ---------- */
 const KI_URL=(location.hostname==='localhost'&&localStorage.getItem('studi-ente-ki-url'))||'https://studi-ente-ki.quak-ente.workers.dev';
+// Meldet Arthurs Wächter, wenn keine/komische Antwort kam (z. B. Cloudflare hat den Server wegen Rechenzeit abgebrochen)
+function meldeFehler(wo,was){ if(!S.kicode||!navigator.onLine) return;
+  try{ fetch(KI_URL+'/meldung',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({code:S.kicode,wo,was})}).catch(()=>{}); }catch(e){} }
 function verkleinere(datei,max){ return new Promise((ok,nein)=>{ const url=URL.createObjectURL(datei), img=new Image();
   img.onload=()=>{ const [w,h]=bildGroesse(img.naturalWidth,img.naturalHeight,max), c=document.createElement('canvas'); c.width=w; c.height=h;
     c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg',0.8)); };
@@ -422,11 +425,12 @@ async function kuehlFoto(datei){
     clearTimeout(uhr);
     const d=await r.json().catch(()=>({}));
     if(r.status===401){ S.kicode=''; U.kuehl={status:'fehler',fehler:'Der Zugangscode stimmt nicht. Gib ihn bitte nochmal ein.'}; }
-    else if(!r.ok) U.kuehl={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)};
+    else if(!r.ok){ U.kuehl={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)}; if(!d.fehler) meldeFehler('kuehlschrank','Status '+r.status+' ohne Text'); }
     else { const e=pruefeKuehl(d);
       if(e){ e.zeit=Date.now(); S.kuehl=e; S.zaehler.fotos++; U.kuehl={status:'ok',rest:typeof d.rest==='number'?d.rest:null,erledigt:{}}; }
-      else U.kuehl={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
-  }catch(e){ U.kuehl={status:'fehler',fehler:e.message==='bild'?'Das Foto konnte ich nicht öffnen. Probier ein anderes.':e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
+      else { U.kuehl={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; meldeFehler('kuehlschrank','Antwort komisch'); } }
+  }catch(e){ if(e.message!=='bild') meldeFehler('kuehlschrank',e.name==='AbortError'?'zu lange gewartet (90 s)':'keine Antwort vom Server');
+    U.kuehl={status:'fehler',fehler:e.message==='bild'?'Das Foto konnte ich nicht öffnen. Probier ein anderes.':e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
   if(U.screen==='kuehl') render(); else speichere();
 }
 
@@ -439,10 +443,11 @@ async function preisCheck(produkt,meinPreis,link){
     clearTimeout(uhr);
     const d=await r.json().catch(()=>({}));
     if(r.status===401){ S.kicode=''; U.preis={status:'fehler',fehler:'Der Zugangscode stimmt nicht. Gib ihn bitte nochmal ein.'}; }
-    else if(!r.ok) U.preis={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)};
+    else if(!r.ok){ U.preis={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)}; if(!d.fehler) meldeFehler('preischeck','Status '+r.status+' ohne Text'); }
     else { const e=pruefePreis(Object.assign({},d,{produkt:produkt||link,meinPreis,zeit:Date.now()}));
-      if(e){ S.preis=e; S.zaehler.preis++; U.preis={status:'ok',rest:typeof d.rest==='number'?d.rest:null}; } else U.preis={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
-  }catch(e){ U.preis={status:'fehler',fehler:e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
+      if(e){ S.preis=e; S.zaehler.preis++; U.preis={status:'ok',rest:typeof d.rest==='number'?d.rest:null}; } else { U.preis={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; meldeFehler('preischeck','Antwort komisch'); } }
+  }catch(e){ meldeFehler('preischeck',e.name==='AbortError'?'zu lange gewartet (150 s)':'keine Antwort vom Server');
+    U.preis={status:'fehler',fehler:e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
   if(U.screen==='preis') render(); else speichere();
 }
 
