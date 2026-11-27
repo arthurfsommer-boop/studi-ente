@@ -395,8 +395,9 @@ async function kuehlFoto(datei){
   if(U.screen==='kuehl') render(); else speichere();
 }
 
+let letzteSuche={produkt:'',meinPreis:'',link:''};   // bleibt nach einem Fehler in den Feldern stehen
 async function preisCheck(produkt,meinPreis,link){
-  U.preis={status:'laden'}; render();
+  letzteSuche={produkt,meinPreis,link}; U.preis={status:'laden'}; render();
   try{
     const ctrl=new AbortController(), uhr=setTimeout(()=>ctrl.abort(),150000);
     const r=await fetch(KI_URL+'/preischeck',{method:'POST',headers:{'Content-Type':'application/json'},signal:ctrl.signal,body:JSON.stringify({code:S.kicode,produkt,preis:meinPreis,link})});
@@ -543,8 +544,8 @@ function seitePreis(){
   const K=U.preis, E=S.preis;
   if(!S.kicode) return codeEingabe('Preis-Check',K.status==='fehler'?K.fehler:'Bevor ich für dich im Internet suche, brauche ich einmal den Zugangscode von deiner Geburtstagskarte.');
   const form=`<div class="card"><h2>Was willst du kaufen?</h2>
-    <div class="pzeile"><input type="text" id="pprod" placeholder="z. B. Statistik-Buch von Bortz" maxlength="200" enterkeyhint="search"></div>
-    <div class="pzeile"><input type="text" id="ppreis" inputmode="decimal" placeholder="Dein Preis (frei)" maxlength="20" style="max-width:170px"><input type="url" id="plink" placeholder="Link (frei)" maxlength="400" autocapitalize="off"></div>
+    <div class="pzeile"><input type="text" id="pprod" value="${U.preis.status==='fehler'?esc(letzteSuche.produkt):''}" placeholder="z. B. Statistik-Buch von Bortz" maxlength="200" enterkeyhint="search"></div>
+    <div class="pzeile"><input type="text" id="ppreis" value="${U.preis.status==='fehler'?esc(letzteSuche.meinPreis):''}" inputmode="decimal" placeholder="Dein Preis (frei)" maxlength="20" style="max-width:170px"><input type="url" id="plink" value="${U.preis.status==='fehler'?esc(letzteSuche.link):''}" placeholder="Link (frei)" maxlength="400" autocapitalize="off"></div>
     <div class="knoepfe" style="margin-top:6px"><button class="btn" id="pgo">🔍 Preis checken</button></div><p class="hint" id="pfehl" style="margin:6px 0 0"></p></div>`;
   let oben='';
   if(K.status==='laden') oben=`<div class="ente-row">${ente('normal',120)}<div class="bubble"><b>Ich suche im Internet …</b> 🔍 Das kann bis zu einer Minute dauern.</div></div>`;
