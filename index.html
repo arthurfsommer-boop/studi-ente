@@ -39,7 +39,7 @@ h2{margin:0 0 10px;font-size:21px}
 .chip{display:inline-block;border-radius:999px;padding:3px 11px;font-size:14px;background:var(--creme2)}
 .chip.warn{background:#FFD9CF;color:#a0361d;font-weight:700}
 .chip.ok{background:#DDF1DE;color:#2f6b33}
-input[type=text],input[type=number]{font:inherit;color:var(--braun);border:2px solid var(--creme2);border-radius:14px;padding:9px 12px;background:#fff;min-width:0}
+input[type=text],input[type=number],input[type=url]{font:inherit;color:var(--braun);border:2px solid var(--creme2);border-radius:14px;padding:9px 12px;background:#fff;min-width:0}
 input:focus{outline:none;border-color:var(--orange)}
 .hint{font-size:14px;color:var(--braun2)}
 .demo{position:fixed;right:12px;bottom:10px;background:var(--braun);color:#fff;border-radius:999px;font-size:13px;padding:6px 14px;opacity:.88;z-index:50}
@@ -78,7 +78,8 @@ input:focus{outline:none;border-color:var(--orange)}
 /* Profil */
 .reiter{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;padding-bottom:4px}
 .pzeile{display:flex;gap:10px;flex-wrap:wrap;padding-top:10px}
-.pzeile #pname{flex:1 1 100%}
+.pzeile #pname,.pzeile #pprod{flex:1 1 100%}
+.pzeile #plink{flex:1 1 160px}
 .pzeile #pdatum{flex:1;min-width:0}
 .reiter button,.wahl button,.mensen button{border:0;font:inherit;color:var(--braun);background:var(--creme2);border-radius:999px;padding:10px 16px;cursor:pointer;white-space:nowrap;flex:none}
 .reiter button.on{background:var(--koralle);color:#fff;font-weight:700;box-shadow:0 3px 0 #d9583c}
@@ -87,6 +88,14 @@ input:focus{outline:none;border-color:var(--orange)}
 .mensen{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:8px}
 .mensen button{border-radius:16px;text-align:left;padding:14px 16px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.knoepfe{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.knoepfe label.btn{position:relative;overflow:hidden;cursor:pointer}
+.versteckt{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.kvorschau{display:block;max-width:100%;max-height:260px;border-radius:16px;margin:0 0 14px;box-shadow:var(--schatten)}
+.krezept details summary{cursor:pointer;font-weight:700}
+.krezept ol{margin:8px 0 0;padding-left:22px;line-height:1.5}
+#main a{color:#c2452a;font-weight:700;text-underline-offset:3px}
+.btn[disabled]{opacity:.6;cursor:default}
 .chip .cx{border:0;background:rgba(255,255,255,.7);border-radius:50%;width:22px;height:22px;font-size:11px;margin-left:4px;cursor:pointer;color:inherit;padding:0}
 .chips .chip{font-size:15px;padding:5px 8px 5px 13px}
 input[type=date]{font:inherit;color:var(--braun);border:2px solid var(--creme2);border-radius:14px;padding:8px 10px;background:#fff;min-height:44px}
@@ -109,7 +118,7 @@ input[type=date]{font:inherit;color:var(--braun);border:2px solid var(--creme2);
 <style>
 /* Ergänzungen für die echte App */
 nav{padding-bottom:max(14px,env(safe-area-inset-bottom))}
-@media(max-width:900px){ nav{padding-bottom:max(6px,env(safe-area-inset-bottom))} main{padding-bottom:110px} .block textarea,.block select,input[type=text],input[type=date]{font-size:16px} }
+@media(max-width:900px){ nav{padding-bottom:max(6px,env(safe-area-inset-bottom))} main{padding-bottom:110px} .block textarea,.block select,input[type=text],input[type=url],input[type=date]{font-size:16px} }
 .block select{width:100%;border:0;border-radius:10px;padding:6px 6px;font:inherit;font-size:14px;background:rgba(255,255,255,.88);color:#2b1a10}
 .minfo{border:0;background:rgba(255,255,255,.55);border-radius:10px;font:inherit;font-size:12.5px;padding:4px 6px;color:#2b1a10;text-align:left;cursor:pointer}
 .mensen button.klein{padding:9px 12px;font-size:15px}
@@ -225,8 +234,36 @@ function warnungen(meal,profil){
   if(profil.ernaehrung==='vegetarisch' && !veg) w.push('nicht als vegetarisch markiert');
   return w;
 }
+/* Kühlschrank: fehlende Zutaten auf die Einkaufsliste (ohne Doppelte), Code aus der QR-Adresse, Fotogröße */
+function fehlendeHinzu(einkauf,fehlt){
+  let n=0;
+  (Array.isArray(fehlt)?fehlt:[]).forEach(x=>{ const t=String(x==null?'':x).trim().replace(/\s+/g,' ').slice(0,60);
+    if(!t || einkauf.some(e=>!e.done && String(e.n).toLowerCase()===t.toLowerCase())) return;
+    einkauf.push({n:t,p:null,s:'',done:false}); n++; });
+  return n;
+}
+function codeAusAdresse(search){ const m=/[?&]k=([A-Za-z0-9_-]{4,64})(?:&|$)/.exec(search||''); return m?m[1]:''; }
+function bildGroesse(w,h,max){ const f=Math.min(1,max/Math.max(w,h)); return [Math.max(1,Math.round(w*f)),Math.max(1,Math.round(h*f))]; }
+/* Antwort vom KI-Server prüfen: nur bekannte Felder übernehmen, alles als Text */
+function pruefeKuehl(d){
+  if(!d||typeof d!=='object'||!Array.isArray(d.zutaten)||!Array.isArray(d.rezepte)) return null;
+  const txt=(x,n)=>String(x==null?'':x).slice(0,n), arr=(a,n,m)=>(Array.isArray(a)?a:[]).slice(0,m).map(x=>txt(x,n));
+  return {quak:txt(d.quak,300), unsicher:txt(d.unsicher,300), zeit:typeof d.zeit==='number'&&d.zeit>0?d.zeit:Date.now(),
+    zutaten:d.zutaten.slice(0,40).map(z=>({name:txt(z&&z.name,60),menge:txt(z&&z.menge,40),haltbarkeit:['bald_verbrauchen','ok','lange'].includes(z&&z.haltbarkeit)?z.haltbarkeit:'ok'})).filter(z=>z.name),
+    rezepte:d.rezepte.slice(0,5).map(r=>({titel:txt(r&&r.titel,80),minuten:Math.max(0,Math.min(300,parseInt(r&&r.minuten,10)||0)),nutzt:arr(r&&r.nutzt,60,20),fehlt:arr(r&&r.fehlt,60,20),schritte:arr(r&&r.schritte,400,15)})).filter(r=>r.titel)};
+}
+/* Preis-Check: Antwort prüfen, Links nur https */
+function sichererLink(x){ try{ const u=new URL(String(x||'')); return u.protocol==='https:'&&u.href.length<=500?u.href:''; }catch(e){ return ''; } }
+function pruefePreis(d){
+  if(!d||typeof d!=='object'||typeof d.zusammenfassung!=='string') return null;
+  const txt=(x,n)=>String(x==null?'':x).slice(0,n);
+  return {urteil:['guenstig','ok','teuer','unklar'].includes(d.urteil)?d.urteil:'unklar', quak:txt(d.quak,300), zusammenfassung:txt(d.zusammenfassung,1500), tipp:txt(d.tipp,300),
+    angebote:(Array.isArray(d.angebote)?d.angebote:[]).slice(0,4).map(a=>({wo:txt(a&&a.wo,80),preis:txt(a&&a.preis,30),zustand:['neu','gebraucht'].includes(a&&a.zustand)?a.zustand:'unklar',link:sichererLink(a&&a.link)})).filter(a=>a.wo),
+    produkt:txt(d.produkt,200), meinPreis:txt(d.meinPreis,20), zeit:typeof d.zeit==='number'&&d.zeit>0?d.zeit:Date.now()};
+}
 if(typeof module!=='undefined') module.exports={TAGE,TYPEN,neuerBlock,leererPlan,findeBlock,einfuegen,verschieben,entfernen,zaehle,
-  fuegeHinzu,tageBis,naechstePruefung,iso,montagVon,tagHeute,datumFuerTag,tagVonDatum,parsePreis,ausgegeben,neueWoche,gerichtName,warnungen};
+  fuegeHinzu,tageBis,naechstePruefung,iso,montagVon,tagHeute,datumFuerTag,tagVonDatum,parsePreis,ausgegeben,neueWoche,gerichtName,warnungen,
+  fehlendeHinzu,codeAusAdresse,bildGroesse,pruefeKuehl,sichererLink,pruefePreis};
 </script>
 
 <script>
@@ -235,19 +272,22 @@ if(typeof document!=='undefined'){
 const KEY='studi-ente-v1';
 const MENSEN=[[1169,'Mensa Am Ring'],[1170,'Mensa Aasee'],[1171,'Mensa Da Vinci'],[1213,'Mensa Bispinghof'],[1214,'Bistro Oeconomicum'],[1172,'Bistro Denkpause'],[1238,'Bistro Katholische Hochschule']];
 const REITER=[['essen','🥕','Essen'],['geld','💶','Geld'],['mensa','🍽️','Mensa'],['pruef','📚','Prüfungen'],['ente','🦆','Ente']];
-function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false,
+function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null,
   profil:{magNicht:[],mag:[],allergien:[],ernaehrung:'alles',laeden:[],mensa:1169,pruefungen:[],enteName:'',gespraechig:'normal'}}; }
 function lade(){
   const s=standard();
   try{
     const d=JSON.parse(localStorage.getItem(KEY)||'null');
     if(d && typeof d==='object'){
-      if(typeof d.ziel==='number') s.ziel=d.ziel;
-      if(Array.isArray(d.einkauf)) s.einkauf=d.einkauf;
-      if(d.plan && TAGE.every(t=>Array.isArray(d.plan[t]))) s.plan=d.plan;
+      if(typeof d.ziel==='number'&&d.ziel>0&&isFinite(d.ziel)) s.ziel=d.ziel;
+      if(Array.isArray(d.einkauf)) s.einkauf=d.einkauf.filter(x=>x&&typeof x.n==='string').map(x=>({n:x.n,p:typeof x.p==='number'&&isFinite(x.p)?x.p:null,s:typeof x.s==='string'?x.s:'',done:!!x.done}));
+      if(d.plan && TAGE.every(t=>Array.isArray(d.plan[t]))) TAGE.forEach(t=>{ s.plan[t]=d.plan[t].filter(b=>b&&TYPEN[b.typ]&&typeof b.id==='string').map(b=>({id:b.id,typ:b.typ,text:typeof b.text==='string'?b.text:''})); });
       if(typeof d.woche==='string') s.woche=d.woche;
-      if(Array.isArray(d.verlauf)) s.verlauf=d.verlauf;
+      if(Array.isArray(d.verlauf)) s.verlauf=d.verlauf.filter(v=>v&&typeof v.woche==='string');
       s.begruesst=!!d.begruesst;
+      if(typeof d.kicode==='string') s.kicode=d.kicode;
+      if(d.kuehl) s.kuehl=pruefeKuehl(d.kuehl);
+      if(d.preis) s.preis=pruefePreis(d.preis);
       if(d.profil) Object.keys(s.profil).forEach(k=>{ if(d.profil[k]!==undefined && typeof d.profil[k]===typeof s.profil[k]) s.profil[k]=d.profil[k]; });
     }
   }catch(e){}
@@ -255,11 +295,11 @@ function lade(){
 }
 let speicherFehler=false;
 function speichere(){
-  try{ localStorage.setItem(KEY, JSON.stringify({ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,profil:S.profil})); speicherFehler=false; }
+  try{ localStorage.setItem(KEY, JSON.stringify({ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,profil:S.profil})); speicherFehler=false; }
   catch(e){ speicherFehler=true; }
 }
 const S=lade();
-const U={screen:'start', reiter:'essen', mensa:null, datum:null};   // nur Bildschirm-Zustand, wird nicht gespeichert
+const U={screen:'start', reiter:'essen', mensa:null, datum:null, kuehl:{status:'leer'}, preis:{status:'leer'}};   // nur Bildschirm-Zustand, wird nicht gespeichert
 neueWoche(S,new Date());
 
 /* ---------- Ente ---------- */
@@ -283,11 +323,12 @@ function ente(mood,px){
 /* ---------- Hilfen ---------- */
 const NAV=[['start','🏠','Start'],['woche','📅','Woche'],['mensa','🍽️','Mensa'],['einkauf','🛒','Einkauf'],['kuehl','🧊','Kühlschrank'],['preis','🏷️','Preis'],['profil','🙂','Profil']];
 const $=s=>document.querySelector(s);
-function eur(x){return x.toFixed(2).replace('.',',')+' €'}
+function eur(x){return x.toFixed(2).replace('.',',')+'\u00a0€'}   // geschütztes Leerzeichen: € rutscht nie allein in die nächste Zeile
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function mensaName(id){ const m=MENSEN.find(x=>x[0]===id); return m?m[1]:'Mensa'; }
 function mensaIdVon(text){ const t=String(text||'').toLowerCase(); const m=MENSEN.find(x=>t.includes(x[1].toLowerCase())||t.includes(x[1].toLowerCase().replace(/^(mensa|bistro) /,''))); return m?m[0]:S.profil.mensa; }
 function datumKurz(s){ const [y,m,d]=s.split('-'); return tagVonDatum(s)+' '+d+'.'+m+'.'; }
+function istIosSafari(){ const ua=navigator.userAgent||''; const ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); return ios && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches; }
 function sprich(normal,wenig,viel){ const g=S.profil.gespraechig; return g==='wenig'?wenig:g==='viel'?viel:normal; }
 function gruss(){ return S.profil.enteName?`<b>Quak, hier ist ${esc(S.profil.enteName)}!</b>`:'<b>Quak!</b>'; }
 
@@ -329,6 +370,46 @@ function mensaInfo(text,datum){
   return `<button class="minfo" data-mgo="${id}|${datum}"><span data-mi="${k}">${mensaKurz(k)}</span></button>`;
 }
 
+/* ---------- KI-Server (Kühlschrank) ---------- */
+const KI_URL=(location.hostname==='localhost'&&localStorage.getItem('studi-ente-ki-url'))||'https://studi-ente-ki.quak-ente.workers.dev';
+function verkleinere(datei,max){ return new Promise((ok,nein)=>{ const url=URL.createObjectURL(datei), img=new Image();
+  img.onload=()=>{ const [w,h]=bildGroesse(img.naturalWidth,img.naturalHeight,max), c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg',0.8)); };
+  img.onerror=()=>{ URL.revokeObjectURL(url); nein(new Error('bild')); }; img.src=url; }); }
+async function kuehlFoto(datei){
+  if(!datei) return;
+  const P=S.profil; U.kuehl={status:'laden',vorschau:''}; render();
+  try{
+    const bild=await verkleinere(datei,1280); U.kuehl.vorschau=bild; if(U.screen==='kuehl') render();
+    const ctrl=new AbortController(), uhr=setTimeout(()=>ctrl.abort(),90000);
+    const r=await fetch(KI_URL+'/kuehlschrank',{method:'POST',headers:{'Content-Type':'application/json'},signal:ctrl.signal,
+      body:JSON.stringify({code:S.kicode,art:'image/jpeg',bild:bild.split(',')[1],profil:{magNicht:P.magNicht,mag:P.mag,allergien:P.allergien,ernaehrung:P.ernaehrung}})});
+    clearTimeout(uhr);
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401){ S.kicode=''; U.kuehl={status:'fehler',fehler:'Der Zugangscode stimmt nicht. Gib ihn bitte nochmal ein.'}; }
+    else if(!r.ok) U.kuehl={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)};
+    else { const e=pruefeKuehl(d);
+      if(e){ e.zeit=Date.now(); S.kuehl=e; U.kuehl={status:'ok',rest:typeof d.rest==='number'?d.rest:null,erledigt:{}}; }
+      else U.kuehl={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
+  }catch(e){ U.kuehl={status:'fehler',fehler:e.message==='bild'?'Das Foto konnte ich nicht öffnen. Probier ein anderes.':e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
+  if(U.screen==='kuehl') render(); else speichere();
+}
+
+async function preisCheck(produkt,meinPreis,link){
+  U.preis={status:'laden'}; render();
+  try{
+    const ctrl=new AbortController(), uhr=setTimeout(()=>ctrl.abort(),150000);
+    const r=await fetch(KI_URL+'/preischeck',{method:'POST',headers:{'Content-Type':'application/json'},signal:ctrl.signal,body:JSON.stringify({code:S.kicode,produkt,preis:meinPreis,link})});
+    clearTimeout(uhr);
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401){ S.kicode=''; U.preis={status:'fehler',fehler:'Der Zugangscode stimmt nicht. Gib ihn bitte nochmal ein.'}; }
+    else if(!r.ok) U.preis={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)};
+    else { const e=pruefePreis(Object.assign({},d,{produkt:produkt||link,meinPreis,zeit:Date.now()}));
+      if(e){ S.preis=e; U.preis={status:'ok',rest:typeof d.rest==='number'?d.rest:null}; } else U.preis={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
+  }catch(e){ U.preis={status:'fehler',fehler:e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
+  if(U.screen==='preis') render(); else speichere();
+}
+
 /* ---------- Seiten ---------- */
 function zeigeNav(){
   $('#nav').innerHTML='<div class="logo">'+ente('froh',64)+'</div>'+NAV.map(([k,i,l])=>
@@ -355,8 +436,10 @@ function seiteStart(){
   <div class="grid">
     <div class="card"><h2>📅 Wochenplan</h2><p class="hint">Einkaufen, Kochen, Mensa und Sonstiges per Finger in die Woche ziehen.</p><button class="btn" data-go="woche">Zur Woche</button></div>
     <div class="card"><h2>🍽️ Mensa</h2><p class="hint">Was gibt’s heute in der ${esc(mensaName(S.profil.mensa))}?</p><button class="btn soft" data-go="mensa">Speiseplan</button></div>
+    <div class="card"><h2>🧊 Kühlschrank</h2><p class="hint">Foto machen, Rezepte aus deinen Resten bekommen.</p><button class="btn soft" data-go="kuehl">Reinschauen</button></div>
     <div class="card"><h2>🛒 Einkauf</h2><p class="hint">${S.einkauf.filter(x=>!x.done).length} Sachen auf der Liste.</p><button class="btn soft" data-go="einkauf">Zur Liste</button></div>
   </div>
+  ${istIosSafari()?'<div class="card"><h2>📲 Tipp: Leg mich auf deinen Home-Bildschirm</h2><p class="hint" style="margin:0">Unten auf <b>Teilen</b> (□↑) tippen, dann <b>„Zum Home-Bildschirm“</b>. Benutz mich danach nur noch von dort: Safari und Home-Bildschirm merken sich getrennte Sachen.</p></div>':''}
   ${speicherFehler?'<p class="chip warn">Speichern klappt gerade nicht (privater Modus?)</p>':''}`;
 }
 
@@ -372,7 +455,7 @@ function blockHtml(b,datum){
   const T=TYPEN[b.typ];
   const feld = b.typ==='mensa'
     ? `<select data-ms="${b.id}" aria-label="Mensa wählen">${MENSEN.map(([id,n])=>`<option value="${id}" ${id===mensaIdVon(b.text)?'selected':''}>${esc(n)}</option>`).join('')}</select>${mensaInfo(b.text,datum)}`
-    : `<textarea rows="2" placeholder="${T.platz}" data-t="${b.id}">${esc(b.text)}</textarea>`;
+    : `<textarea rows="3" placeholder="${T.platz}" data-t="${b.id}">${esc(b.text)}</textarea>`;
   return `<div class="block ${b.typ}" data-id="${b.id}"><div class="kopf"><span class="grip" title="Festhalten und ziehen">⋮⋮</span><span>${T.icon}</span>${T.label}<button class="x" data-x="${b.id}" aria-label="Löschen">✕</button></div>${feld}</div>`;
 }
 
@@ -421,6 +504,66 @@ function seiteEinkauf(){
   <div class="card"><h2>${rest>=0?'Noch übrig: '+eur(rest):'Überzogen: '+eur(-rest)}</h2><div class="zaehler"><i style="width:${Math.min(100,ausg/S.ziel*100)}%"></i></div><p class="hint">Wochenbudget ${eur(S.ziel)} (ändern im Profil). Am Montag fängt die Woche neu an.</p></div>`;
 }
 
+function codeEingabe(titel,text){
+  return `<h1>${titel}</h1><div class="ente-row">${ente('normal',120)}<div class="bubble">${gruss()} ${esc(text)}</div></div>
+    <div class="card"><div class="zeile"><input type="text" id="kcode" placeholder="Zugangscode" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1" enterkeyhint="done"><button class="btn" id="kok">OK</button></div><p class="hint" id="kfehl" style="margin:4px 0 0"></p></div>`;
+}
+function seiteKuehl(){
+  if(!KI_URL) return seiteBald('Kühlschrank','Bald machst du hier ein Foto von deinem Kühlschrank, und ich schlage dir Rezepte aus deinen Resten vor.');
+  const K=U.kuehl, E=S.kuehl, P=S.profil;
+  if(!S.kicode) return codeEingabe('Kühlschrank',K.status==='fehler'?K.fehler:'Bevor ich in deinen Kühlschrank schauen darf, brauche ich einmal den Zugangscode von deiner Geburtstagskarte.');
+  const knoepfe=`<div class="card knoepfe"><label class="btn">📸 Foto machen<input type="file" accept="image/*" capture="environment" class="versteckt" data-foto></label>
+    <label class="btn soft">🖼️ Aus Fotos wählen<input type="file" accept="image/*" class="versteckt" data-foto></label>
+    <p class="hint" style="margin:10px 0 0">Tür auf, alles gut sichtbar, nicht zu dunkel. Klappt auch mit dem Vorratsschrank.</p></div>`;
+  let oben='';
+  if(K.status==='laden') oben=`<div class="ente-row">${ente('normal',120)}<div class="bubble"><b>Ich schaue mal nach …</b> 🔍 Das dauert ein paar Sekunden.</div></div>${K.vorschau?`<img class="kvorschau" src="${K.vorschau}" alt="Dein Foto">`:''}`;
+  else if(K.status==='fehler') oben=`<div class="ente-row">${ente('schlaf',110)}<div class="bubble"><b>Oh nein!</b> ${esc(K.fehler)}</div></div>`;
+  let erg='';
+  if(E && K.status!=='laden'){
+    const icon={bald_verbrauchen:'⏰ ',ok:'',lange:'📦 '}, kl={bald_verbrauchen:'warn',ok:'',lange:'ok'};
+    const reihe=['bald_verbrauchen','ok','lange'], zut=E.zutaten.slice().sort((a,b)=>reihe.indexOf(a.haltbarkeit)-reihe.indexOf(b.haltbarkeit));
+    const erledigt=K.erledigt||{};
+    erg=`${K.status==='ok'?`<div class="ente-row">${ente('froh',120)}<div class="bubble">${gruss()} ${esc(E.quak)}</div></div>`:`<p class="hint">Dein letztes Foto vom ${new Date(E.zeit).toLocaleDateString('de-DE')}:</p>`}
+    <div class="card"><h2>Das hab ich gefunden</h2><div class="chips">${zut.map(z=>`<span class="chip ${kl[z.haltbarkeit]}">${icon[z.haltbarkeit]}${esc(z.name)}${z.menge?` <small>(${esc(z.menge)})</small>`:''}</span>`).join('')||'<span class="hint">Nichts erkannt.</span>'}</div>
+      <p class="hint" style="margin:6px 0 0">⏰ = bald verbrauchen · 📦 = hält lange${E.unsicher?'<br>Nicht sicher: '+esc(E.unsicher):''}</p></div>
+    ${E.rezepte.map((r,i)=>{ const w=warnungen({name:[r.titel].concat(r.nutzt,r.fehlt).join(' '),notes:['vegan']},Object.assign({},P,{ernaehrung:'alles'}));
+      return `<div class="card krezept"><h2 style="margin:0 0 6px">${esc(r.titel)}</h2><span class="chip">⏱️ ${r.minuten} Min.</span> ${w.map(x=>`<span class="chip warn">⚠️ ${esc(x)}</span>`).join(' ')}
+      <p style="margin:10px 0 4px"><b>Hast du:</b> ${esc(r.nutzt.join(', '))||'–'}</p><p style="margin:0 0 8px"><b>Fehlt noch:</b> ${r.fehlt.length?esc(r.fehlt.join(', ')):'nichts 🎉'}</p>
+      <details><summary>So geht's</summary><ol>${r.schritte.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></details>
+      <div class="knoepfe" style="margin-top:10px">${r.fehlt.length?`<button class="btn soft" data-rfehlt="${i}" ${erledigt['f'+i]?'disabled':''}>${erledigt['f'+i]?'✓ '+erledigt['f'+i]:'🛒 Fehlendes auf die Liste'}</button>`:''}
+       <button class="btn soft" data-rplan="${i}" ${erledigt['p'+i]?'disabled':''}>${erledigt['p'+i]?'✓ Im Wochenplan':'📅 Heute kochen'}</button></div></div>`; }).join('')}
+    ${K.status==='ok'&&K.rest!=null?`<p class="hint">Diese Woche gehen noch ${K.rest} Fotos.</p>`:''}`;
+  }
+  return `<h1>Kühlschrank</h1><p class="sub">Foto machen: Die Ente schaut, was bald weg muss, und schlägt dir Rezepte vor.</p>
+  ${K.status==='laden'?'':knoepfe}${oben}${erg}
+  <p class="hint">Die Ente achtet auf dein Profil (mag nicht, Allergien, ${esc(P.ernaehrung)}). Sie kann sich irren: Bei Allergien bitte immer selbst auf die Packung schauen.</p>`;
+}
+function seitePreis(){
+  if(!KI_URL) return seiteBald('Preis-Check','Bald schaue ich hier für dich nach, ob es etwas woanders oder gebraucht günstiger gibt.');
+  const K=U.preis, E=S.preis;
+  if(!S.kicode) return codeEingabe('Preis-Check',K.status==='fehler'?K.fehler:'Bevor ich für dich im Internet suche, brauche ich einmal den Zugangscode von deiner Geburtstagskarte.');
+  const form=`<div class="card"><h2>Was willst du kaufen?</h2>
+    <div class="pzeile"><input type="text" id="pprod" placeholder="z. B. Statistik-Buch von Bortz" maxlength="200" enterkeyhint="search"></div>
+    <div class="pzeile"><input type="text" id="ppreis" inputmode="decimal" placeholder="Dein Preis (frei)" maxlength="20" style="max-width:170px"><input type="url" id="plink" placeholder="Link (frei)" maxlength="400" autocapitalize="off"></div>
+    <div class="knoepfe" style="margin-top:6px"><button class="btn" id="pgo">🔍 Preis checken</button></div><p class="hint" id="pfehl" style="margin:6px 0 0"></p></div>`;
+  let oben='';
+  if(K.status==='laden') oben=`<div class="ente-row">${ente('normal',120)}<div class="bubble"><b>Ich suche im Internet …</b> 🔍 Das kann bis zu einer Minute dauern.</div></div>`;
+  else if(K.status==='fehler') oben=`<div class="ente-row">${ente('schlaf',110)}<div class="bubble"><b>Oh nein!</b> ${esc(K.fehler)}</div></div>`;
+  let erg='';
+  if(E && K.status!=='laden'){
+    const U2={guenstig:['ok','👍 Guter Preis!'],ok:['','🙂 Normaler Preis'],teuer:['warn','😬 Geht günstiger'],unklar:['','🤔 Schwer zu sagen']}[E.urteil];
+    erg=`${K.status==='ok'?`<div class="ente-row">${ente('froh',110)}<div class="bubble">${gruss()} ${esc(E.quak)}</div></div>`:`<p class="hint">Dein letzter Preis-Check vom ${new Date(E.zeit).toLocaleDateString('de-DE')}:</p>`}
+    <div class="card"><h2 style="margin:0 0 6px">${esc(E.produkt)}${E.meinPreis?` <small>für ${esc(E.meinPreis)}</small>`:''}</h2><span class="chip ${U2[0]}">${U2[1]}</span>
+      <p>${esc(E.zusammenfassung)}</p>
+      ${E.angebote.map(a=>`<div class="zeile"><span class="n">${a.link?`<a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">${esc(a.wo)}</a>`:esc(a.wo)}</span>${a.zustand!=='unklar'?`<span class="chip ${a.zustand==='gebraucht'?'ok':''}">${a.zustand}</span>`:''}<b>${esc(a.preis)}</b></div>`).join('')}
+      ${E.tipp?`<p class="hint">💡 ${esc(E.tipp)}</p>`:''}
+      <div class="knoepfe" style="margin-top:8px"><button class="btn soft" id="pliste" ${U.preis.aufListe?'disabled':''}>${U.preis.aufListe?'✓ Auf der Einkaufsliste':'🛒 Auf die Einkaufsliste'}</button></div></div>
+    ${K.status==='ok'&&K.rest!=null?`<p class="hint">Diese Woche gehen noch ${K.rest} Preis-Checks.</p>`:''}`;
+  }
+  return `<h1>Preis-Check</h1><p class="sub">Die Ente sucht im Internet, ob es neu oder gebraucht günstiger geht.</p>
+  ${K.status==='laden'?'':form}${oben}${erg}
+  <p class="hint">Preise ändern sich schnell. Bitte vor dem Kaufen auf der Seite selbst nachschauen.</p>`;
+}
 function seiteBald(titel,text){
   return `<h1>${titel}</h1><div class="ente-row">${ente('schlaf',130)}<div class="bubble"><b>Kommt bald!</b> ${text}</div></div>`;
 }
@@ -460,8 +603,8 @@ function render(){
   speichere();
   zeigeNav();
   $('#main').innerHTML=({start:seiteStart,woche:seiteWoche,mensa:seiteMensa,einkauf:seiteEinkauf,profil:seiteProfil,
-    kuehl:()=>seiteBald('Kühlschrank','Bald machst du hier ein Foto von deinem Kühlschrank, und ich schlage dir Rezepte aus deinen Resten vor.'),
-    preis:()=>seiteBald('Preis-Check','Bald schaue ich hier für dich nach, ob es etwas woanders oder gebraucht günstiger gibt.')})[U.screen]();
+    kuehl:seiteKuehl,
+    preis:seitePreis})[U.screen]();
   bindeSeite();
 }
 function bindeSeite(){
@@ -471,6 +614,8 @@ function bindeSeite(){
   if(U.screen==='woche') bindeWoche();
   if(U.screen==='profil') bindeProfil(q,qa);
   if(U.screen==='einkauf') bindeEinkauf(q,qa);
+  if(U.screen==='kuehl') bindeKuehl(q,qa);
+  if(U.screen==='preis') bindePreis(q);
   if(U.screen==='mensa'){
     const an=q('.mzeile .on'); if(an) an.scrollIntoView({block:'nearest',inline:'center'});
     qa('[data-mz]').forEach(b=>b.onclick=()=>{U.mensa=+b.dataset.mz; U.datum=null; render();});
@@ -479,6 +624,30 @@ function bindeSeite(){
     if(q('#inplan')) q('#inplan').onclick=()=>{ const id=U.mensa||S.profil.mensa, td=MD[id], d=U.datum&&td.tage.includes(U.datum)?U.datum:td.tage[0];
       einfuegen(S.plan,tagVonDatum(d),99,neuerBlock('mensa',mensaName(id))); speichere(); q('#inplan').textContent='✓ Im Wochenplan'; q('#inplan').disabled=true; };
   }
+}
+function bindeCode(q){
+  if(!q('#kok')) return;
+  const go=()=>{ const c=q('#kcode').value.replace(/\s+/g,'').toLowerCase();
+    if(!/^[A-Za-z0-9_-]{4,64}$/.test(c)){ q('#kfehl').textContent='Der Code besteht nur aus Buchstaben und Zahlen. Schau nochmal auf die Karte.'; return; }
+    S.kicode=c; U.kuehl={status:'leer'}; U.preis={status:'leer'}; render(); };
+  q('#kok').onclick=go; q('#kcode').onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();go()} };
+}
+function bindeKuehl(q,qa){
+  bindeCode(q);
+  qa('[data-foto]').forEach(i=>i.onchange=()=>{ const f=i.files&&i.files[0]; i.value=''; kuehlFoto(f); });
+  const E=S.kuehl, er=()=>(U.kuehl.erledigt=U.kuehl.erledigt||{});
+  qa('[data-rfehlt]').forEach(b=>b.onclick=()=>{ const n=fehlendeHinzu(S.einkauf,E.rezepte[+b.dataset.rfehlt].fehlt); er()['f'+b.dataset.rfehlt]=n?n+(n===1?' Sache':' Sachen')+' auf der Liste':'Schon auf der Liste'; render(); });
+  qa('[data-rplan]').forEach(b=>b.onclick=()=>{ einfuegen(S.plan,tagHeute(new Date()),99,neuerBlock('kochen',E.rezepte[+b.dataset.rplan].titel.slice(0,120))); er()['p'+b.dataset.rplan]=true; render(); });
+}
+function bindePreis(q){
+  bindeCode(q);
+  if(q('#pgo')){ const go=()=>{ const prod=q('#pprod').value.trim().replace(/\s+/g,' '), link=q('#plink').value.trim(), pr=q('#ppreis').value.trim();
+      if(!prod && !link){ q('#pfehl').textContent='Schreib, was du suchst, oder füg einen Link ein.'; q('#pprod').focus(); return; }
+      if(link && !sichererLink(link)){ q('#pfehl').textContent='Der Link muss mit https:// anfangen.'; q('#plink').focus(); return; }
+      preisCheck(prod,pr,link); };
+    q('#pgo').onclick=go; q('#pprod').onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();go()} }; }
+  if(q('#pliste')) q('#pliste').onclick=()=>{ const p=parsePreis(S.preis.meinPreis);
+    S.einkauf.push({n:S.preis.produkt.slice(0,60),p:Number.isNaN(p)?null:p,s:'',done:false}); U.preis.aufListe=true; render(); };
 }
 function bindeEinkauf(q,qa){
   qa('[data-chk]').forEach(c=>c.onchange=()=>{S.einkauf[+c.dataset.chk].done=c.checked; render();});
@@ -547,6 +716,8 @@ function ueberPalette(x,y){ const e=document.elementFromPoint(x,y); return !!(e&
 function einfuegeIndex(zone,y){ let i=0; for(const k of zone.querySelectorAll('.block')){ const r=k.getBoundingClientRect(); if(y>r.top+r.height/2) i++; } return i; }
 
 /* ---------- Begrüßung (nur beim allerersten Öffnen) ---------- */
+const qrCode=codeAusAdresse(location.search);
+if(qrCode && S.kicode!==qrCode){ S.kicode=qrCode; speichere(); }   // Code bleibt in der Adresse: das iPhone übernimmt sie beim „Zum Home-Bildschirm“
 const hp=location.hash.slice(1).split(',');
 if(!S.begruesst && hp[1]!=='x'){
   $('#hallo').innerHTML=`<div class="karte">${ente('froh',130)}<h1>Alles Gute zum Geburtstag, Löttmött! 🎂</h1>
@@ -557,7 +728,9 @@ if(!S.begruesst && hp[1]!=='x'){
 if(NAV.some(n=>n[0]===hp[0])) U.screen=hp[0];
 if(hp[2]&&REITER.some(r=>r[0]===hp[2])) U.reiter=hp[2];
 /* Kommt sie nach Tagen zurück (App war im Hintergrund), neue Woche prüfen und neu zeichnen */
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden && !(document.activeElement&&document.activeElement.matches('input,textarea,select'))){ neueWoche(S,new Date()); render(); } });
+let gezeichnetAm=iso(new Date());
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) return; const h=new Date(), neu=neueWoche(S,h);
+  if((neu||iso(h)!==gezeichnetAm) && !(document.activeElement&&document.activeElement.matches('input,textarea,select'))){ gezeichnetAm=iso(h); render(); } });
 render();
 }
 </script>
