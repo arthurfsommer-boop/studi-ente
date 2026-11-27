@@ -90,6 +90,10 @@ input:focus{outline:none;border-color:var(--orange)}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .knoepfe{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .knoepfe label.btn{position:relative;overflow:hidden;cursor:pointer}
+a.btn{text-decoration:none;display:inline-block}
+.grid.zwei{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.rb{margin:0;text-align:center}
+.rbz{font-size:30px;font-weight:800;line-height:1.2}
 .versteckt{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
 .kvorschau{display:block;max-width:100%;max-height:260px;border-radius:16px;margin:0 0 14px;box-shadow:var(--schatten)}
 .krezept details summary{cursor:pointer;font-weight:700}
@@ -213,11 +217,39 @@ function parsePreis(s){
   const v=Number(t); return v<10000 ? v : NaN;
 }
 function ausgegeben(einkauf){ return Math.round(einkauf.filter(x=>x.done && typeof x.p==='number').reduce((a,x)=>a+x.p,0)*100)/100; }
+// Texte aller Bausteine einer Sorte im Wochenplan (leere Bausteine zählen als '')
+function planTexte(plan,typ){ const a=[]; if(!plan||typeof plan!=="object") return a; TAGE.forEach(t=>(plan[t]||[]).forEach(b=>{ if(b.typ===typ) a.push(String(b.text||'').trim().slice(0,120)); })); return a; }
 // Neue Woche? Dann alte Woche für den Rückblick merken und Abgehaktes wegräumen
 function neueWoche(st,h){
   const k=iso(montagVon(h)); if(st.woche===k) return false;
-  if(st.woche) st.verlauf.push({woche:st.woche, ausgegeben:ausgegeben(st.einkauf), budget:st.ziel});
+  if(st.woche) st.verlauf.push({woche:st.woche, ausgegeben:ausgegeben(st.einkauf), budget:st.ziel, kochen:planTexte(st.plan,'kochen'), mensa:planTexte(st.plan,'mensa')});
   st.einkauf=st.einkauf.filter(x=>!x.done); st.woche=k; return true;
+}
+/* Kochjahr-Rückblick: alte Wochen + laufende Woche zusammenzählen */
+function haeufigstes(liste){
+  const z={}, erst={}; liste.forEach(x=>{ const t=String(x||'').trim(); if(!t) return; const k=t.toLowerCase(); z[k]=(z[k]||0)+1; if(!erst[k]) erst[k]=t; });
+  let best=null; Object.keys(z).forEach(k=>{ if(!best||z[k]>z[best]) best=k; });
+  return best?{n:erst[best],x:z[best]}:null;
+}
+function rueckblick(st){
+  const V=Array.isArray(st.verlauf)?st.verlauf:[], arr=a=>Array.isArray(a)?a:[];
+  const kochen=V.flatMap(v=>arr(v.kochen)).concat(planTexte(st.plan,'kochen'));
+  const mensa=V.flatMap(v=>arr(v.mensa)).concat(planTexte(st.plan,'mensa'));
+  const mitEinkauf=V.filter(v=>typeof v.ausgegeben==='number'&&v.ausgegeben>0&&typeof v.budget==='number');
+  const gespart=Math.round(mitEinkauf.reduce((a,v)=>a+Math.max(0,v.budget-v.ausgegeben),0)*100)/100;
+  const z=st.zaehler||{};
+  return {wochen:V.length+1, kochen:kochen.length, mensa:mensa.length, lieblingsGericht:haeufigstes(kochen), lieblingsMensa:haeufigstes(mensa),
+    gespart, sparWochen:mitEinkauf.length, fotos:z.fotos|0, preis:z.preis|0, seit:st.seit||''};
+}
+/* Bücher & Second-Hand: Such-Links (Suchbegriff sicher in die Adresse) */
+function buchLinks(q){
+  const s=encodeURIComponent(String(q||'').trim().replace(/\s+/g,' ').slice(0,120)); if(!s) return [];
+  return [['🏛️ Uni-Bibliothek (gratis leihen)','https://hbz-ulbms.primo.exlibrisgroup.com/discovery/search?vid=49HBZ_ULM:VU2&lang=de&query=any,contains,'+s],
+    ['Kleinanzeigen','https://www.kleinanzeigen.de/s-suchanfrage.html?keywords='+s],
+    ['Vinted','https://www.vinted.de/catalog?search_text='+s],
+    ['Medimops','https://www.medimops.de/produkte-C0/?fcIsSearch=1&searchparam='+s],
+    ['ZVAB (Antiquariate)','https://www.zvab.com/servlet/SearchResults?kn='+s],
+    ['Rebuy','https://www.rebuy.de/kaufen/suchen?q='+s]];
 }
 
 /* Mensa (Daten von OpenMensa) */
@@ -263,7 +295,7 @@ function pruefePreis(d){
 }
 if(typeof module!=='undefined') module.exports={TAGE,TYPEN,neuerBlock,leererPlan,findeBlock,einfuegen,verschieben,entfernen,zaehle,
   fuegeHinzu,tageBis,naechstePruefung,iso,montagVon,tagHeute,datumFuerTag,tagVonDatum,parsePreis,ausgegeben,neueWoche,gerichtName,warnungen,
-  fehlendeHinzu,codeAusAdresse,bildGroesse,pruefeKuehl,sichererLink,pruefePreis};
+  fehlendeHinzu,codeAusAdresse,bildGroesse,pruefeKuehl,sichererLink,pruefePreis,planTexte,haeufigstes,rueckblick,buchLinks};
 </script>
 
 <script>
@@ -272,7 +304,7 @@ if(typeof document!=='undefined'){
 const KEY='studi-ente-v1';
 const MENSEN=[[1169,'Mensa Am Ring'],[1170,'Mensa Aasee'],[1171,'Mensa Da Vinci'],[1213,'Mensa Bispinghof'],[1214,'Bistro Oeconomicum'],[1172,'Bistro Denkpause'],[1238,'Bistro Katholische Hochschule']];
 const REITER=[['essen','🥕','Essen'],['geld','💶','Geld'],['mensa','🍽️','Mensa'],['pruef','📚','Prüfungen'],['ente','🦆','Ente']];
-function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null,
+function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null, seit:'', zaehler:{fotos:0,preis:0},
   profil:{magNicht:[],mag:[],allergien:[],ernaehrung:'alles',laeden:[],mensa:1169,pruefungen:[],enteName:'',gespraechig:'normal'}}; }
 function lade(){
   const s=standard();
@@ -288,6 +320,8 @@ function lade(){
       if(typeof d.kicode==='string') s.kicode=d.kicode;
       if(d.kuehl) s.kuehl=pruefeKuehl(d.kuehl);
       if(d.preis) s.preis=pruefePreis(d.preis);
+      if(typeof d.seit==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d.seit)) s.seit=d.seit;
+      if(d.zaehler&&typeof d.zaehler==='object') ['fotos','preis'].forEach(k=>{ const v=d.zaehler[k]; if(Number.isInteger(v)&&v>=0) s.zaehler[k]=v; });
       if(d.profil) Object.keys(s.profil).forEach(k=>{ if(d.profil[k]!==undefined && typeof d.profil[k]===typeof s.profil[k]) s.profil[k]=d.profil[k]; });
     }
   }catch(e){}
@@ -295,12 +329,13 @@ function lade(){
 }
 let speicherFehler=false;
 function speichere(){
-  try{ localStorage.setItem(KEY, JSON.stringify({ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,profil:S.profil})); speicherFehler=false; }
+  try{ localStorage.setItem(KEY, JSON.stringify({ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,seit:S.seit,zaehler:S.zaehler,profil:S.profil})); speicherFehler=false; }
   catch(e){ speicherFehler=true; }
 }
 const S=lade();
-const U={screen:'start', reiter:'essen', mensa:null, datum:null, kuehl:{status:'leer'}, preis:{status:'leer'}};   // nur Bildschirm-Zustand, wird nicht gespeichert
+const U={screen:'start', reiter:'essen', mensa:null, datum:null, kuehl:{status:'leer'}, preis:{status:'leer'}, buch:''};   // nur Bildschirm-Zustand, wird nicht gespeichert
 neueWoche(S,new Date());
+if(!S.seit) S.seit=iso(new Date());   // erster Tag mit der Ente (für den Rückblick)
 
 /* ---------- Ente ---------- */
 function ente(mood,px){
@@ -389,7 +424,7 @@ async function kuehlFoto(datei){
     if(r.status===401){ S.kicode=''; U.kuehl={status:'fehler',fehler:'Der Zugangscode stimmt nicht. Gib ihn bitte nochmal ein.'}; }
     else if(!r.ok) U.kuehl={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)};
     else { const e=pruefeKuehl(d);
-      if(e){ e.zeit=Date.now(); S.kuehl=e; U.kuehl={status:'ok',rest:typeof d.rest==='number'?d.rest:null,erledigt:{}}; }
+      if(e){ e.zeit=Date.now(); S.kuehl=e; S.zaehler.fotos++; U.kuehl={status:'ok',rest:typeof d.rest==='number'?d.rest:null,erledigt:{}}; }
       else U.kuehl={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
   }catch(e){ U.kuehl={status:'fehler',fehler:e.message==='bild'?'Das Foto konnte ich nicht öffnen. Probier ein anderes.':e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
   if(U.screen==='kuehl') render(); else speichere();
@@ -406,7 +441,7 @@ async function preisCheck(produkt,meinPreis,link){
     if(r.status===401){ S.kicode=''; U.preis={status:'fehler',fehler:'Der Zugangscode stimmt nicht. Gib ihn bitte nochmal ein.'}; }
     else if(!r.ok) U.preis={status:'fehler',fehler:String(d.fehler||'Da ist was schiefgelaufen. Bitte nochmal probieren.').slice(0,200)};
     else { const e=pruefePreis(Object.assign({},d,{produkt:produkt||link,meinPreis,zeit:Date.now()}));
-      if(e){ S.preis=e; U.preis={status:'ok',rest:typeof d.rest==='number'?d.rest:null}; } else U.preis={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
+      if(e){ S.preis=e; S.zaehler.preis++; U.preis={status:'ok',rest:typeof d.rest==='number'?d.rest:null}; } else U.preis={status:'fehler',fehler:'Die Antwort war komisch. Bitte nochmal probieren.'}; }
   }catch(e){ U.preis={status:'fehler',fehler:e.name==='AbortError'?'Das hat zu lange gedauert. Bitte nochmal probieren.':'Keine Verbindung. Bist du online?'}; }
   if(U.screen==='preis') render(); else speichere();
 }
@@ -439,6 +474,8 @@ function seiteStart(){
     <div class="card"><h2>🍽️ Mensa</h2><p class="hint">Was gibt’s heute in der ${esc(mensaName(S.profil.mensa))}?</p><button class="btn soft" data-go="mensa">Speiseplan</button></div>
     <div class="card"><h2>🧊 Kühlschrank</h2><p class="hint">Foto machen, Rezepte aus deinen Resten bekommen.</p><button class="btn soft" data-go="kuehl">Reinschauen</button></div>
     <div class="card"><h2>🛒 Einkauf</h2><p class="hint">${S.einkauf.filter(x=>!x.done).length} Sachen auf der Liste.</p><button class="btn soft" data-go="einkauf">Zur Liste</button></div>
+    <div class="card"><h2>🏆 Dein Kochjahr</h2><p class="hint">Was du mit der Ente schon alles geschafft hast.</p><button class="btn soft" data-go="rueckblick">Rückblick</button></div>
+    <div class="card"><h2>📚 Bücher</h2><p class="hint">Fachbuch gesucht? Erst leihen, dann gebraucht.</p><button class="btn soft" data-go="preis">Buch suchen</button></div>
   </div>
   ${istIosSafari()?'<div class="card"><h2>📲 Tipp: Leg mich auf deinen Home-Bildschirm</h2><p class="hint" style="margin:0">Unten auf <b>Teilen</b> (□↑) tippen, dann <b>„Zum Home-Bildschirm“</b>. Benutz mich danach nur noch von dort: Safari und Home-Bildschirm merken sich getrennte Sachen.</p></div>':''}
   ${speicherFehler?'<p class="chip warn">Speichern klappt gerade nicht (privater Modus?)</p>':''}`;
@@ -542,7 +579,7 @@ function seiteKuehl(){
 function seitePreis(){
   if(!KI_URL) return seiteBald('Preis-Check','Bald schaue ich hier für dich nach, ob es etwas woanders oder gebraucht günstiger gibt.');
   const K=U.preis, E=S.preis;
-  if(!S.kicode) return codeEingabe('Preis-Check',K.status==='fehler'?K.fehler:'Bevor ich für dich im Internet suche, brauche ich einmal den Zugangscode von deiner Geburtstagskarte.');
+  if(!S.kicode) return codeEingabe('Preis-Check',K.status==='fehler'?K.fehler:'Bevor ich für dich im Internet suche, brauche ich einmal den Zugangscode von deiner Geburtstagskarte.')+buchKarte();
   const form=`<div class="card"><h2>Was willst du kaufen?</h2>
     <div class="pzeile"><input type="text" id="pprod" value="${U.preis.status==='fehler'?esc(letzteSuche.produkt):''}" placeholder="z. B. Statistik-Buch von Bortz" maxlength="200" enterkeyhint="search"></div>
     <div class="pzeile"><input type="text" id="ppreis" value="${U.preis.status==='fehler'?esc(letzteSuche.meinPreis):''}" inputmode="decimal" placeholder="Dein Preis (frei)" maxlength="20" style="max-width:170px"><input type="url" id="plink" value="${U.preis.status==='fehler'?esc(letzteSuche.link):''}" placeholder="Link (frei)" maxlength="400" autocapitalize="off"></div>
@@ -563,7 +600,34 @@ function seitePreis(){
   }
   return `<h1>Preis-Check</h1><p class="sub">Die Ente sucht im Internet, ob es neu oder gebraucht günstiger geht.</p>
   ${K.status==='laden'?'':form}${oben}${erg}
-  <p class="hint">Preise ändern sich schnell. Bitte vor dem Kaufen auf der Seite selbst nachschauen.</p>`;
+  <p class="hint">Preise ändern sich schnell. Bitte vor dem Kaufen auf der Seite selbst nachschauen.</p>
+  ${buchKarte()}`;
+}
+function buchKarte(){
+  const L=buchLinks(U.buch||'');
+  return `<div class="card" id="buecher"><h2>📚 Bücher &amp; Second-Hand</h2>
+    <div class="pzeile"><input type="text" id="bq" value="${esc(U.buch||'')}" placeholder="Titel, Autor oder ISBN" maxlength="120" style="flex:1;width:100%" enterkeyhint="search"></div>
+    <div class="knoepfe" id="blinks" style="margin-top:6px">${L.length?L.map(([n,u])=>`<a class="btn soft" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join(''):'<p class="hint" style="margin:0">Tipp oben einen Buchtitel ein, dann suche ich überall gleichzeitig.</p>'}</div>
+    <p class="hint" style="margin:8px 0 0">Tipp der Ente: Erst in der Uni-Bibliothek schauen. Leihen ist gratis! 🦆</p></div>`;
+}
+function seiteRueckblick(){
+  const R=rueckblick(S), seit=R.seit?new Date(R.seit+'T12:00').toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'}):'heute';
+  const leer=!R.kochen&&!R.mensa&&!R.fotos&&!R.preis&&!R.sparWochen;
+  const zahl=(n,txt,ic)=>`<div class="card rb"><div class="rbz">${ic} ${n}</div><div class="hint" style="margin:0">${txt}</div></div>`;
+  const satz=leer?'Wir fangen gerade erst an! Plan was in der Woche, koch was Leckeres, und ich zähle hier alles mit. 💛'
+    : R.kochen>=R.mensa?`${R.kochen}-mal selbst gekocht! Ich bin so stolz auf dich. 🍳`:`${R.mensa}-mal Mensa: Du kennst dich aus! 🍽️`;
+  return `<h1>Dein Kochjahr 🏆</h1><p class="sub">Mit der Ente seit dem ${seit} · Woche ${R.wochen}</p>
+  <div class="ente-row">${ente('froh',130)}<div class="bubble">${gruss()} ${satz}</div></div>
+  <div class="grid zwei">
+    ${zahl(R.kochen,'mal gekocht (laut Wochenplan)','🍳')}
+    ${zahl(R.mensa,'mal Mensa (laut Wochenplan)','🍽️')}
+    ${zahl(R.fotos,'Kühlschrank-Fotos','📸')}
+    ${zahl(R.preis,'Preis-Checks','🏷️')}
+  </div>
+  ${R.lieblingsGericht?`<div class="card"><h2>💛 Lieblingsgericht: ${esc(R.lieblingsGericht.n)}</h2><p class="hint" style="margin:0">${R.lieblingsGericht.x}-mal im Plan</p></div>`:''}
+  ${R.lieblingsMensa?`<div class="card"><h2>🍽️ Lieblingsmensa: ${esc(R.lieblingsMensa.n)}</h2><p class="hint" style="margin:0">${R.lieblingsMensa.x}-mal im Plan</p></div>`:''}
+  ${R.sparWochen?`<div class="card"><h2>💶 Unter dem Budget geblieben: ${eur(R.gespart)}</h2><p class="hint" style="margin:0">aus ${R.sparWochen} ${R.sparWochen===1?'Woche':'Wochen'} mit Einkäufen</p></div>`:''}
+  <p class="hint">Die Ente zählt nur, was in diesem Gerät steht. Jeden Montag kommt die letzte Woche dazu.</p>`;
 }
 function seiteBald(titel,text){
   return `<h1>${titel}</h1><div class="ente-row">${ente('schlaf',130)}<div class="bubble"><b>Kommt bald!</b> ${text}</div></div>`;
@@ -604,7 +668,7 @@ function render(){
   speichere();
   zeigeNav();
   $('#main').innerHTML=({start:seiteStart,woche:seiteWoche,mensa:seiteMensa,einkauf:seiteEinkauf,profil:seiteProfil,
-    kuehl:seiteKuehl,
+    kuehl:seiteKuehl, rueckblick:seiteRueckblick,
     preis:seitePreis})[U.screen]();
   bindeSeite();
 }
@@ -642,6 +706,10 @@ function bindeKuehl(q,qa){
 }
 function bindePreis(q){
   bindeCode(q);
+  if(q('#bq')){ const b=q('#bq');   // nur die Knöpfe neu zeichnen, damit die Tastatur offen bleibt
+    b.oninput=()=>{ U.buch=b.value; const L=buchLinks(b.value);
+      q('#blinks').innerHTML=L.length?L.map(([n,u])=>`<a class="btn soft" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join(''):'<p class="hint" style="margin:0">Tipp oben einen Buchtitel ein, dann suche ich überall gleichzeitig.</p>'; };
+    b.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); b.blur(); } }; }
   if(q('#pgo')){ const go=()=>{ const prod=q('#pprod').value.trim().replace(/\s+/g,' '), link=q('#plink').value.trim(), pr=q('#ppreis').value.trim();
       if(!prod && !link){ q('#pfehl').textContent='Schreib, was du suchst, oder füg einen Link ein.'; q('#pprod').focus(); return; }
       if(link && !sichererLink(link)){ q('#pfehl').textContent='Der Link muss mit https:// anfangen.'; q('#plink').focus(); return; }
@@ -726,7 +794,7 @@ if(!S.begruesst && hp[1]!=='x'){
   $('#los').onclick=()=>{ S.begruesst=true; speichere(); $('#hallo').remove(); };
 } else $('#hallo').remove();
 /* Test-Einstieg: index.html#seite,x,reiter */
-if(NAV.some(n=>n[0]===hp[0])) U.screen=hp[0];
+if(NAV.some(n=>n[0]===hp[0])||hp[0]==='rueckblick') U.screen=hp[0];
 if(hp[2]&&REITER.some(r=>r[0]===hp[2])) U.reiter=hp[2];
 /* Kommt sie nach Tagen zurück (App war im Hintergrund), neue Woche prüfen und neu zeichnen */
 let gezeichnetAm=iso(new Date());
