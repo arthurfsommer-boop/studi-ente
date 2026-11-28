@@ -145,6 +145,29 @@ nav{padding-bottom:max(14px,env(safe-area-inset-bottom))}
   .block.pal .kopf{font-size:15px}
   .gericht h2{font-size:16.5px}
 }
+#offline{position:fixed;bottom:16px;left:0;right:0;margin:0 auto;width:fit-content;z-index:50;background:var(--braun);color:#fff;border-radius:999px;padding:7px 14px;font-size:14px;box-shadow:var(--schatten);max-width:calc(100% - 24px);text-align:center}
+#offline[hidden]{display:none}
+@media(max-width:900px){ #offline{bottom:calc(84px + env(safe-area-inset-bottom))} }
+#brief{position:fixed;inset:0;background:rgba(60,40,28,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:210;padding:18px;animation:einblenden .35s ease}
+#brief .szene{text-align:center;max-width:460px;width:100%}
+#brief .szene h2{color:#fff;font-size:24px;margin:8px 0 4px;text-shadow:0 2px 8px rgba(0,0,0,.3)}
+#brief .szene p{color:#FFEBD0;margin:0 0 16px}
+#brief .watschel{display:inline-block;animation:watscheln 1.1s ease-in-out infinite}
+#brief .watschel .umschlag{animation:wackeln 1.1s ease-in-out infinite;transform-origin:50px 130px}
+.papier{background:#FFFDF8;border-radius:10px 10px 22px 22px;padding:22px 22px 18px;box-shadow:0 18px 40px rgba(0,0,0,.35);text-align:left;position:relative;;animation:hochkommen .5s cubic-bezier(.2,.9,.3,1.2)}
+.papier .pkopf{font-size:14px;color:var(--braun2);margin-bottom:10px;display:flex;justify-content:space-between;gap:8px}
+.papier .ptext{background-image:repeating-linear-gradient(transparent 0 31px,#F1E3CF 31px 32px);background-attachment:local;white-space:pre-wrap;overflow-wrap:anywhere;font-size:19px;line-height:32px;color:var(--braun);max-height:55vh;overflow:auto;font-family:"Segoe Print","Bradley Hand","Comic Sans MS",ui-rounded,cursive}
+.papier .gruss{margin-top:8px;text-align:right;font-family:"Segoe Print","Bradley Hand","Comic Sans MS",ui-rounded,cursive;color:var(--koralle);font-size:18px}
+#brief .knoepfe{justify-content:center;margin-top:16px}
+.herzchen{position:fixed;pointer-events:none;font-size:26px;z-index:220;animation:aufsteigen 1.6s ease-out forwards}
+.postliste .papier{animation:none;margin-bottom:14px;box-shadow:var(--schatten)}
+.postliste .papier.neu{outline:3px solid var(--gelb)}
+@keyframes einblenden{from{opacity:0}to{opacity:1}}
+@keyframes watscheln{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+@keyframes wackeln{0%,100%{transform:rotate(0)}50%{transform:rotate(6deg)}}
+@keyframes hochkommen{from{transform:translateY(60px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+@keyframes aufsteigen{from{transform:translateY(0) scale(.6);opacity:1}to{transform:translateY(-220px) scale(1.3);opacity:0}}
+@media(prefers-reduced-motion:reduce){#brief,#brief .watschel,#brief .watschel .umschlag,.papier,.herzchen{animation:none}}
 </style>
 </head>
 <body>
@@ -153,6 +176,7 @@ nav{padding-bottom:max(14px,env(safe-area-inset-bottom))}
   <main id="main"></main>
 </div>
 <div id="hallo"></div>
+<div id="offline" role="status" hidden>📴 Offline: Mensa &amp; KI warten aufs Netz</div>
 
 <script>
 /* ---------- Reine Logik (ohne Bildschirm; wird mit Node getestet: node test_plan.js) ---------- */
@@ -293,15 +317,18 @@ function pruefeKuehl(d){
 }
 /* Preis-Check: Antwort prüfen, Links nur https */
 function sichererLink(x){ try{ const u=new URL(String(x||'')); return u.protocol==='https:'&&u.href.length<=500?u.href:''; }catch(e){ return ''; } }
+/* Kleinanzeigen-Suchlinks der alten Form (…/s-suchanfrage.html?keywords=…) versteht die iPhone-App nicht → Kurzform */
+function appLink(x){ try{ const u=new URL(x); if(!/(^|\.)kleinanzeigen\.de$/.test(u.hostname)) return x;
+  const k=u.searchParams.get('keywords'); return k&&(u.pathname==='/s-suchanfrage.html'||u.pathname==='/s-suche.html')?kaLink(k):x; }catch(e){ return x; } }
 function pruefePreis(d){
   if(!d||typeof d!=='object'||typeof d.zusammenfassung!=='string') return null;
   const txt=(x,n)=>String(x==null?'':x).slice(0,n);
   return {urteil:['guenstig','ok','teuer','unklar'].includes(d.urteil)?d.urteil:'unklar', quak:txt(d.quak,300), zusammenfassung:txt(d.zusammenfassung,1500), tipp:txt(d.tipp,300),
-    angebote:(Array.isArray(d.angebote)?d.angebote:[]).slice(0,4).map(a=>({wo:txt(a&&a.wo,80),preis:txt(a&&a.preis,30),zustand:['neu','gebraucht'].includes(a&&a.zustand)?a.zustand:'unklar',link:sichererLink(a&&a.link)})).filter(a=>a.wo),
+    angebote:(Array.isArray(d.angebote)?d.angebote:[]).slice(0,4).map(a=>({wo:txt(a&&a.wo,80),preis:txt(a&&a.preis,30),zustand:['neu','gebraucht'].includes(a&&a.zustand)?a.zustand:'unklar',link:appLink(sichererLink(a&&a.link))})).filter(a=>a.wo),
     produkt:txt(d.produkt,200), meinPreis:txt(d.meinPreis,20), zeit:typeof d.zeit==='number'&&d.zeit>0?d.zeit:Date.now()};
 }
 /* Gespeicherte Daten prüfen (Gerätespeicher UND Sicherungsdatei): Kaputtes wird übersprungen, nie übernommen */
-function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null, seit:'', zaehler:{fotos:0,preis:0},
+function standard(){ return {ziel:25, einkauf:[], plan:leererPlan(), woche:'', verlauf:[], begruesst:false, kicode:'', kuehl:null, preis:null, seit:'', zaehler:{fotos:0,preis:0}, post:[], postGelesen:[],
   profil:{magNicht:[],mag:[],allergien:[],ernaehrung:'alles',laeden:[],mensa:1169,pruefungen:[],enteName:'',gespraechig:'normal'}}; }
 function pruefeDaten(d){
   const s=standard();
@@ -321,9 +348,19 @@ function pruefeDaten(d){
   ['magNicht','mag','allergien','laeden'].forEach(k=>{ s.profil[k]=s.profil[k].filter(x=>typeof x==='string').map(x=>x.slice(0,40)); });
   s.profil.pruefungen=s.profil.pruefungen.filter(p=>p&&typeof p.n==='string'&&typeof p.d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(p.d)).map(p=>({n:p.n.slice(0,40),d:p.d}));
   if(!isFinite(s.profil.mensa)) s.profil.mensa=1169;
+  s.post=pruefeBriefe(d.post);
+  if(Array.isArray(d.postGelesen)) s.postGelesen=d.postGelesen.filter(x=>typeof x==='string'&&x.length<=40).slice(-200);
   return s;
 }
-function zuSpeichern(S){ return {ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,seit:S.seit,zaehler:S.zaehler,profil:S.profil}; }
+/* Briefe von Kneggbert (vom Server): nur saubere Einträge übernehmen */
+function pruefeBriefe(l){
+  return (Array.isArray(l)?l:[]).filter(b=>b&&typeof b.id==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(b.id)&&typeof b.text==='string'&&b.text.trim()&&typeof b.zeit==='string'&&!isNaN(Date.parse(b.zeit)))
+    .slice(-100).map(b=>({id:b.id,zeit:b.zeit,text:b.text.slice(0,1000)}));
+}
+function ungelesen(S){ const g=new Set(S.postGelesen); return S.post.filter(b=>!g.has(b.id)); }
+/* Neue Liste vom Server übernehmen: gelöschte Briefe verschwinden, gelesen-Liste bleibt klein */
+function postUebernehmen(S,briefe){ const l=pruefeBriefe(briefe), ids=new Set(l.map(b=>b.id)); S.post=l; S.postGelesen=S.postGelesen.filter(i=>ids.has(i)); return l; }
+function zuSpeichern(S){ return {ziel:S.ziel,einkauf:S.einkauf,plan:S.plan,woche:S.woche,verlauf:S.verlauf,begruesst:S.begruesst,kicode:S.kicode,kuehl:S.kuehl,preis:S.preis,seit:S.seit,zaehler:S.zaehler,profil:S.profil,post:S.post,postGelesen:S.postGelesen}; }
 /* Sicherungsdatei: {app:'studi-ente', version:1, datum, daten:{…}} */
 function sicherungMachen(S,jetzt){ return JSON.stringify({app:'studi-ente',version:1,datum:iso(jetzt||new Date()),daten:zuSpeichern(S)}); }
 function sicherungLesen(text){
@@ -334,7 +371,7 @@ function sicherungLesen(text){
 }
 if(typeof module!=='undefined') module.exports={standard,pruefeDaten,zuSpeichern,sicherungMachen,sicherungLesen,TAGE,TYPEN,neuerBlock,leererPlan,findeBlock,einfuegen,verschieben,entfernen,zaehle,
   fuegeHinzu,tageBis,naechstePruefung,iso,montagVon,tagHeute,datumFuerTag,tagVonDatum,parsePreis,ausgegeben,neueWoche,gerichtName,warnungen,
-  fehlendeHinzu,codeAusAdresse,bildGroesse,pruefeKuehl,sichererLink,pruefePreis,planTexte,haeufigstes,rueckblick,buchLinks};
+  fehlendeHinzu,codeAusAdresse,bildGroesse,pruefeKuehl,sichererLink,appLink,pruefePreis,planTexte,haeufigstes,rueckblick,buchLinks,pruefeBriefe,ungelesen,postUebernehmen};
 </script>
 
 <script>
@@ -353,13 +390,55 @@ function speichere(){
 }
 /* Browser bitten, die Daten nicht von selbst zu löschen (Safari räumt sonst nach 7 Tagen ohne Besuch auf) */
 try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
+/* Offline: Helfer im Hintergrund merkt sich die App (sw.js); Hinweis, solange kein Netz da ist */
+try{ if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){}
+const zeigeOffline=()=>{ const o=document.getElementById('offline'); if(o) o.hidden=navigator.onLine!==false; };
+window.addEventListener('online',()=>{ zeigeOffline(); [MC,MD].forEach(o=>Object.keys(o).forEach(k=>{ if(o[k].status==='fehler') delete o[k]; })); if(U.screen==='mensa'||U.screen==='start') render(); });
+window.addEventListener('offline',zeigeOffline); zeigeOffline();
+/* ---------- Post von Kneggbert: beim Öffnen abholen, ungelesene bringt die Ente als Umschlag ---------- */
+let postLaeuft=false, postZuletzt=0;
+async function holePost(){
+  if(!KI_URL||!S.kicode||postLaeuft||Date.now()-postZuletzt<20000) return;
+  postLaeuft=true; postZuletzt=Date.now();
+  try{
+    const r=await fetch(KI_URL+'/briefkasten',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:S.kicode})});
+    if(!r.ok) return;
+    const vorher=JSON.stringify(S.post); postUebernehmen(S,(await r.json()).briefe);
+    if(JSON.stringify(S.post)!==vorher){ speichere(); if(U.screen==='start'||U.screen==='post') render(); }
+    zeigePost();
+  }catch(e){} finally{ postLaeuft=false; }
+}
+function gelesenMelden(ids){ try{ fetch(KI_URL+'/gelesen',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({code:S.kicode,ids})}).catch(()=>{}); }catch(e){} }
+function herzchen(){ for(let i=0;i<9;i++){ const h=document.createElement('div'); h.className='herzchen'; h.textContent=['💛','💌','🧡','💛'][i%4];
+  h.style.left=(15+Math.random()*70)+'vw'; h.style.top=(55+Math.random()*30)+'vh'; h.style.animationDelay=(i*0.09)+'s'; document.body.appendChild(h); setTimeout(()=>h.remove(),2200); } }
+function zeigePost(){
+  const u=ungelesen(S);
+  if(!u.length||document.getElementById('brief')||document.getElementById('hallo')) return;
+  const el=document.createElement('div'); el.id='brief'; el.setAttribute('role','dialog'); el.setAttribute('aria-label','Post von Kneggbert'); document.body.appendChild(el);
+  const name=esc(S.profil.enteName||'Die Ente');
+  const umschlag=(nochmal)=>{
+    el.innerHTML=`<div class="szene"><div class="watschel">${ente('froh',170,'brief')}</div>
+      <h2>${nochmal?'Da ist noch einer! 💌':'Quak! Du hast Post!'}</h2><p>${nochmal?'':name+' bringt dir einen Brief von Kneggbert.'}${ungelesen(S).length>1?' ('+ungelesen(S).length+' Briefe)':''}</p>
+      <button class="btn" id="bauf">💌 Brief öffnen</button></div>`;
+    el.querySelector('#bauf').onclick=oeffnen; el.querySelector('#bauf').focus();
+  };
+  const oeffnen=()=>{
+    const b=ungelesen(S)[0]; if(!b){ el.remove(); return; }
+    S.postGelesen.push(b.id); speichere(); gelesenMelden([b.id]);
+    el.innerHTML=`<div class="szene">${papier(b)}<div class="knoepfe"><button class="btn" id="bdanke">💛 Danke, ${name==='Die Ente'?'Ente':name}!</button></div></div>`;
+    el.querySelector('#bdanke').onclick=()=>{ herzchen(); if(ungelesen(S).length) umschlag(true); else { el.remove(); render(); } };
+  };
+  umschlag(false);
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) holePost(); });
+window.addEventListener('online',()=>{ postZuletzt=0; holePost(); });
 const S=lade();
 const U={screen:'start', reiter:'essen', mensa:null, datum:null, kuehl:{status:'leer'}, preis:{status:'leer'}, buch:''};   // nur Bildschirm-Zustand, wird nicht gespeichert
 neueWoche(S,new Date());
 if(!S.seit) S.seit=iso(new Date());   // erster Tag mit der Ente (für den Rückblick)
 
 /* ---------- Ente ---------- */
-function ente(mood,px){
+function ente(mood,px,extra){
   const augen = mood==='schlaf' ? '<path d="M70 70q6 5 12 0M98 70q6 5 12 0" stroke="#4A3426" stroke-width="4" fill="none" stroke-linecap="round"/>'
     : mood==='froh' ? '<path d="M70 72q6-8 12 0M98 72q6-8 12 0" stroke="#4A3426" stroke-width="4" fill="none" stroke-linecap="round"/>'
     : '<circle cx="76" cy="68" r="5.5" fill="#4A3426"/><circle cx="104" cy="68" r="5.5" fill="#4A3426"/><circle cx="78" cy="66" r="1.8" fill="#fff"/><circle cx="106" cy="66" r="1.8" fill="#fff"/>';
@@ -373,6 +452,7 @@ function ente(mood,px){
     <path d="M80 94q10-5 20 0" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none"/>
     <path d="M86 34q4-14 12-8" stroke="#F5B21F" stroke-width="5" fill="none" stroke-linecap="round"/>
     ${mood==='schlaf'?'<text x="130" y="44" font-size="22" fill="#7A5C48">z z</text>':''}
+    ${extra==='brief'?'<g class="umschlag"><g transform="rotate(-14 52 128)"><rect x="16" y="106" width="68" height="46" rx="6" fill="#fff" stroke="#E2C9A8" stroke-width="2.5"/><path d="M18 110l32 24l32-24" fill="none" stroke="#E2C9A8" stroke-width="2.5"/><path d="M50 129c-3-5-11-2-8 4l8 7l8-7c3-6-5-9-8-4z" fill="#FF7A5C"/></g></g>':''}
   </svg>`;
 }
 
@@ -475,7 +555,7 @@ async function preisCheck(produkt,meinPreis,link){
 /* ---------- Seiten ---------- */
 function zeigeNav(){
   $('#nav').innerHTML='<div class="logo">'+ente('froh',64)+'</div>'+NAV.map(([k,i,l])=>
-   `<button data-k="${k}" class="${U.screen===k?'on':''}"><span class="ic">${i}</span>${l}</button>`).join('');
+   `<button data-k="${k}" class="${U.screen===k||((U.screen==='rueckblick'||U.screen==='post')&&k==='start')?'on':''}"><span class="ic">${i}</span>${l}</button>`).join('');
   $('#nav').querySelectorAll('button').forEach(b=>b.onclick=()=>geh(b.dataset.k));
 }
 function geh(screen){ U.screen=screen; render(); window.scrollTo(0,0); }
@@ -492,6 +572,7 @@ function seiteStart(){
   return `<h1>Hallo Löttmött! 👋</h1><p class="sub">${['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][h.getDay()]}, ${datum.slice(8)}.${datum.slice(5,7)}.</p>
   <div class="ente-row">${ente(heute.length?'froh':'normal',140)}<div class="bubble">${gruss()} ${satz}
    ${mensaHeute.map(b=>`<div style="margin-top:8px">🍽️ ${esc(mensaName(mensaIdVon(b.text)))}: ${mensaInfo(b.text,datum)}</div>`).join('')}</div></div>
+  ${S.post.length?`<div class="card"><h2>💌 Post von Kneggbert</h2><p class="hint">${ungelesen(S).length?ungelesen(S).length+(ungelesen(S).length===1?' neuer Brief!':' neue Briefe!'):S.post.length+(S.post.length===1?' Brief':' Briefe')+' zum Nachlesen.'}</p><button class="btn soft" data-go="post">Briefe lesen</button></div>`:''}
   ${np?`<div class="card"><h2>📚 ${np.tage===0?'Heute':'Noch '+np.tage+(np.tage===1?' Tag':' Tage')}: ${esc(np.n)}</h2><p class="hint" style="margin:0">${np.tage<=7?'Endspurt! Die Ente drückt dir alle Flügel. 🍀':'Genug Zeit, aber fang ruhig schon mal an. Die Ente zählt mit.'}</p></div>`:''}
   <div class="card"><h2>${rest>=0?`Diese Woche noch übrig: ${eur(rest)}`:`Budget um ${eur(-rest)} überzogen`}</h2><div class="zaehler"><i style="width:${proz}%"></i></div>
    <p class="hint">${eur(ausg)} von ${eur(S.ziel)} ausgegeben (abgehakte Einkäufe). ${rest>=0?'Gut gemacht!':'Nicht schlimm, nächste Woche wird’s wieder.'}</p></div>
@@ -643,6 +724,14 @@ function buchKarte(){
     <div class="knoepfe" id="blinks" style="margin-top:6px">${L.length?L.map(([n,u])=>`<a class="btn soft" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join(''):'<p class="hint" style="margin:0">Tipp oben einen Buchtitel ein, dann suche ich überall gleichzeitig.</p>'}</div>
     <p class="hint" style="margin:8px 0 0">Tipp der Ente: Erst in der Uni-Bibliothek schauen. Leihen ist gratis! 🦆</p></div>`;
 }
+function briefDatum(z){ const d=new Date(z), h=new Date(); return d.toLocaleDateString('de-DE',{day:'numeric',month:'long',...(d.getFullYear()!==h.getFullYear()?{year:'numeric'}:{})}); }
+function papier(b,klasse){ return `<div class="papier ${klasse||''}"><div class="pkopf"><span>💌 von Kneggbert</span><span>${esc(briefDatum(b.zeit))}</span></div><div class="ptext">${esc(b.text)}</div></div>`; }
+function seitePost(){
+  const neu=new Set(ungelesen(S).map(b=>b.id));
+  return `<h1>💌 Post von Kneggbert</h1><p class="sub">${esc(S.profil.enteName||'Die Ente')} hebt alle Briefe für dich auf. Der neueste steht oben.</p>
+  ${S.post.length?`<div class="postliste">${S.post.slice().reverse().map(b=>papier(b,neu.has(b.id)?'neu':'')).join('')}</div>`
+   :`<div class="ente-row">${ente('normal',110)}<div class="bubble">Noch keine Post da. Ich gucke jedes Mal nach, wenn du mich öffnest! 📬</div></div>`}`;
+}
 function seiteRueckblick(){
   const R=rueckblick(S), seit=R.seit?new Date(R.seit+'T12:00').toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'}):'heute';
   const leer=!R.kochen&&!R.mensa&&!R.fotos&&!R.preis&&!R.sparWochen;
@@ -706,7 +795,7 @@ function render(){
   speichere();
   zeigeNav();
   $('#main').innerHTML=({start:seiteStart,woche:seiteWoche,mensa:seiteMensa,einkauf:seiteEinkauf,profil:seiteProfil,
-    kuehl:seiteKuehl, rueckblick:seiteRueckblick,
+    kuehl:seiteKuehl, rueckblick:seiteRueckblick, post:seitePost,
     preis:seitePreis})[U.screen]();
   bindeSeite();
 }
@@ -855,16 +944,17 @@ const hp=location.hash.slice(1).split(',');
 if(!S.begruesst && hp[1]!=='x'){
   $('#hallo').innerHTML=`<div class="karte">${ente('froh',130)}<h1>Alles Gute zum Geburtstag, Löttmött! 🎂</h1>
   <p>Deine Ente hat sich was für dich ausgedacht: Sie schaut in deinen Kühlschrank, plant mit dir die Woche und passt auf dein Geld auf.</p><p class="hint">Dein Kneggbert</p><button class="btn" id="los">Los geht's</button></div>`;
-  $('#los').onclick=()=>{ S.begruesst=true; speichere(); $('#hallo').remove(); };
+  $('#los').onclick=()=>{ S.begruesst=true; speichere(); $('#hallo').remove(); zeigePost(); };
 } else $('#hallo').remove();
 /* Test-Einstieg: index.html#seite,x,reiter */
-if(NAV.some(n=>n[0]===hp[0])||hp[0]==='rueckblick') U.screen=hp[0];
+if(NAV.some(n=>n[0]===hp[0])||hp[0]==='rueckblick'||hp[0]==='post') U.screen=hp[0];
 if(hp[2]&&REITER.some(r=>r[0]===hp[2])) U.reiter=hp[2];
 /* Kommt sie nach Tagen zurück (App war im Hintergrund), neue Woche prüfen und neu zeichnen */
 let gezeichnetAm=iso(new Date());
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) return; const h=new Date(), neu=neueWoche(S,h);
   if((neu||iso(h)!==gezeichnetAm) && !(document.activeElement&&document.activeElement.matches('input,textarea,select'))){ gezeichnetAm=iso(h); render(); } });
 render();
+holePost();
 }
 </script>
 </body>
